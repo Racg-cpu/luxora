@@ -1080,7 +1080,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
   function vistaLogin() {
     var crearCuenta = S.modoLogin === "crear";
     var err = h("p", { class: "error", role: "alert", hidden: true });
-    var nom = crearCuenta ? h("input", { id: "l-nombre", type: "text", autocomplete: "organization", maxlength: "60", placeholder: "Ej. Farmacias Campero", required: true }) : null;
+    var nom = crearCuenta ? h("input", { id: "l-nombre", type: "text", autocomplete: "organization", maxlength: "60", placeholder: "Ej. Panadería La Espiga", required: true }) : null;
     var mail = h("input", { id: "l-correo", type: "email", autocomplete: "username", spellcheck: "false", placeholder: "tucorreo@gmail.com", maxlength: "120", required: true });
     var clave = h("input", { id: "l-clave", type: "password", autocomplete: crearCuenta ? "new-password" : "current-password", minlength: "8", placeholder: crearCuenta ? "Mínimo 8 caracteres" : "••••••••", required: true });
     var btn = h("button", { class: "btn btn-lg", type: "submit" }, crearCuenta ? "Crear mi cuenta" : "Entrar");
@@ -1106,7 +1106,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
         p.then(function (r) {
           if (r.error) { mostrar(traducir(r.error)); return; }
           clave.value = "";
-          if (crearCuenta && !r.data.session) { mostrar("Cuenta creada. Ya puedes entrar con tu correo y contraseña."); S.modoLogin = "entrar"; return; }
+          if (crearCuenta && !r.data.session) { mostrar("Listo. Entra con tu correo y contraseña. Si ese correo ya tenía cuenta, usa la contraseña que creaste antes."); S.modoLogin = "entrar"; return; }
           S.modoLogin = "entrar";
         }, function (e) { mostrar(traducir(e)); });
       }
@@ -1118,7 +1118,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
         h("span", { class: "brillo" }, h("img", { class: "logo-completo", src: blobUrl(LOGO_COMPLETO), alt: "Luxora, De Ideas A Éxito" })),
         h("div", { class: "filete" }),
         h("p", { class: "kicker" }, crearCuenta ? "Crear cuenta de cliente" : "Portal de clientes"),
-        h("p", { class: "lead" }, crearCuenta ? "Crea tu cuenta con tu correo. Raúl te dará acceso a tus negocios y aquí verás tus imágenes y reportes." : (S.marca.eslogan || "Aprueba tus imágenes, pide piezas nuevas y revisa los resultados de tus anuncios.")),
+        h("p", { class: "lead" }, crearCuenta ? "Crea tu cuenta con tu correo. Raúl te dará acceso a tus negocios y aquí verás tus imágenes y reportes." : (S.marca.eslogan && !/de ideas a [eé]xito/i.test(S.marca.eslogan) ? S.marca.eslogan : "Aprueba tus imágenes, pide piezas nuevas y revisa los resultados de tus anuncios.")),
         form,
         cambiar,
         h("a", { class: "nota", href: "../", style: "color:var(--gold)" }, "Conoce Luxora →")));
@@ -1569,7 +1569,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
   }
   function formImagen(img, negId) {
     abrirHoja(function () {
-      var t = h("input", { id: "fi-titulo", type: "text", maxlength: "140", required: true, placeholder: "Ej. Promoción vitamina C", value: img ? img.titulo : "" });
+      var t = h("input", { id: "fi-titulo", type: "text", maxlength: "140", required: true, placeholder: "Ej. Promoción de fin de semana", value: img ? img.titulo : "" });
       var ng = selectNegocio("fi-negocio", img ? img.negocioId : negId);
       var fe = h("input", { id: "fi-fecha", type: "date", value: img ? img.fecha || "" : "" });
       var fo = h("select", { id: "fi-formato" }, h("option", { value: "" }, "Sin definir"), FORMATOS.map(function (f) { return h("option", { value: f }, f); }));
@@ -1592,7 +1592,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
     var color = n ? (n.color || 0) : S.negocios.length % 6;
     abrirHoja(function () {
       var nom = h("input", { id: "fn-nombre", type: "text", maxlength: "60", required: true, placeholder: "Ej. Óptica del Valle", value: n ? n.nombre : "" });
-      var des = h("input", { id: "fn-desc", type: "text", maxlength: "140", placeholder: "Ej. Farmacia en Guasave, 3 sucursales", value: n ? n.descripcion || "" : "" });
+      var des = h("input", { id: "fn-desc", type: "text", maxlength: "140", placeholder: "Ej. Cafetería con 2 sucursales", value: n ? n.descripcion || "" : "" });
       var sw = h("div", { class: "swatches", role: "group", "aria-label": "Color" });
       [0, 1, 2, 3, 4, 5].forEach(function (k) {
         add(sw, h("button", { class: "swatch", type: "button", "aria-label": "Color " + (k + 1), "aria-pressed": color === k ? "true" : "false", vars: { "--c": "var(--n" + k + ")" }, onclick: function () {
@@ -1615,7 +1615,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
   function formReporte(negId) {
     var archivo = null;
     abrirHoja(function () {
-      var t = h("input", { id: "fr-titulo", type: "text", maxlength: "120", required: true, placeholder: "Ej. Campaña Día de Muertos" });
+      var t = h("input", { id: "fr-titulo", type: "text", maxlength: "120", required: true, placeholder: "Ej. Campaña de regreso a clases" });
       var ng = selectNegocio("fr-negocio", negId);
       var pl = h("select", { id: "fr-plat" }, PLATAFORMAS.map(function (p) { return h("option", { value: p }, p); }));
       var de = h("input", { id: "fr-desde", type: "date" }), ha = h("input", { id: "fr-hasta", type: "date" });
@@ -1646,7 +1646,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
   }
   function formSolicitud(n) {
     abrirHoja(function () {
-      var t = h("input", { id: "fs-titulo", type: "text", maxlength: "120", required: true, placeholder: "Ej. Promoción de vitaminas" });
+      var t = h("input", { id: "fs-titulo", type: "text", maxlength: "120", required: true, placeholder: "Ej. Postre del mes" });
       var d = h("textarea", { id: "fs-detalle", maxlength: "600", placeholder: "Qué producto o servicio, precio o promoción confirmada, texto que debe llevar." });
       var fe = h("input", { id: "fs-fecha", type: "date" });
       var fo = h("select", { id: "fs-formato" }, FORMATOS.map(function (f) { return h("option", { value: f }, f); }));
@@ -1717,7 +1717,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
     if (!a) return;
     var elegidos = (a.negocios || []).slice();
     abrirHoja(function () {
-      var nom = h("input", { id: "fa-nombre", type: "text", maxlength: "60", placeholder: "Ej. Farmacias Campero", value: a.nombre || "" });
+      var nom = h("input", { id: "fa-nombre", type: "text", maxlength: "60", placeholder: "Ej. Panadería La Espiga", value: a.nombre || "" });
       var checks = h("div", { class: "checks" });
       negociosOrden().forEach(function (n) {
         var cb = h("input", { type: "checkbox", checked: elegidos.indexOf(n.id) >= 0, onchange: function () {
@@ -1757,7 +1757,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
   function vistaMarca() {
     var root = h("div", { class: "seccion", style: "gap:24px" });
     var esl = h("input", { id: "m-eslogan", type: "text", maxlength: "120", placeholder: "Ej. Marketing que se ve y se vende", value: S.marca.eslogan || "" });
-    var wa = h("input", { id: "m-wa", type: "tel", maxlength: "20", placeholder: "Ej. 526871234567", value: S.marca.whatsapp || "" });
+    var wa = h("input", { id: "m-wa", type: "tel", maxlength: "20", placeholder: "Ej. 521234567890", value: S.marca.whatsapp || "" });
     var btn = h("button", { class: "btn", type: "submit" }, "Guardar");
     add(root, h("section", { class: "hero glass" },
       h("p", { class: "kicker" }, "Administración"),
