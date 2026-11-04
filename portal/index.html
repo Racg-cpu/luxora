@@ -1501,12 +1501,22 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
     if (!S.assets) { aviso("Para importar entra con tu cuenta de administrador."); return; }
     var inp = document.createElement("input");
     inp.type = "file"; inp.multiple = true; inp.setAttribute("accept", TIPOS.join(","));
+    inp.setAttribute("accept", TIPOS.join(",") + ",application/json,.json");
     inp.addEventListener("change", function () {
-      var files = Array.prototype.slice.call(inp.files || []);
-      if (!files.length) return;
+      var todos = Array.prototype.slice.call(inp.files || []);
+      if (!todos.length) return;
+      var jsons = todos.filter(function (f) { return /\.json$/i.test(f.name || ""); });
+      var files = todos.filter(function (f) { return !/\.json$/i.test(f.name || ""); });
+      Promise.all(jsons.map(function (j) { return j.text().then(function (t) { try { return JSON.parse(t); } catch (e) { return {}; } }); }))
+        .then(function (mapas) { armar(files, Object.assign.apply(null, [{}].concat(mapas))); });
+    });
+    inp.click();
+    function armar(files, mapa) {
       var grupos = {}, ignorados = [];
       files.forEach(function (f) {
-        var m = /^(.+?)__(borrador-(\d+)|final)\.[a-z0-9]+$/i.exec(f.name || "");
+        var nombre = f.name || "", destinoMapa = mapa[nombre];
+        if (destinoMapa) nombre = destinoMapa + (/(\.[a-z0-9]+)$/i.exec(f.name) || ["", ".png"])[1];
+        var m = /^(.+?)__(borrador-(\d+)|final)\.[a-z0-9]+$/i.exec(nombre);
         var img = m ? imgPorId(m[1]) : null;
         if (!img || !tipoDe(f)) { ignorados.push(f.name); return; }
         var g = grupos[img.id] = grupos[img.id] || { img: img, borradores: [], final: null };
@@ -1523,12 +1533,19 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
           add(filas, h("div", { class: "fila" }, thumb(g.img, "mini"),
             h("div", { class: "fila-mid" }, h("span", { class: "fila-titulo" }, g.img.titulo), h("span", { class: "fila-sub" }, marcadorNeg(n), (E[g.img.estado] || E.pendiente).l)),
             h("span", { class: "pill e-info" }, [g.borradores.length ? plural(g.borradores.length, "borrador", "borradores") : null, g.final ? "versión final" : null].filter(Boolean).join(" + "))));
+          var prev = h("div", { style: "display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;margin:-2px 0 6px 66px" });
+          g.borradores.concat(g.final ? [{ n: "Final", f: g.final }] : []).forEach(function (b) {
+            if (!/^image\//.test(tipoDe(b.f) || "")) return;
+            g.urls = g.urls || {}; var u = g.urls[b.n] = g.urls[b.n] || URL.createObjectURL(b.f);
+            add(prev, h("figure", { style: "margin:0;display:flex;flex-direction:column;gap:2px" }, h("img", { src: u, alt: g.img.titulo + " " + b.n, style: "width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:10px;border:1px solid var(--rim)" }), h("figcaption", { class: "nota", style: "font-size:11px" }, typeof b.n === "number" ? "Opción " + b.n : "Final")));
+          });
+          if (prev.children.length) add(filas, prev);
         });
         var mover = h("input", { type: "checkbox", checked: est.mover, onchange: function (e) { est.mover = e.target.checked; } });
         var btn = h("button", { class: "btn", type: "button", disabled: est.corriendo || est.terminado || !total, onclick: function () { correr(); } },
           est.terminado ? "Listo" : est.corriendo ? "Subiendo " + est.hechos + " de " + total + "…" : "Subir " + plural(total, "archivo", "archivos"));
         return h("div", { class: "seccion" }, cabHoja("Importar lote"),
-          h("p", { class: "nota" }, plural(lista.length, "imagen reconocida", "imágenes reconocidas") + ". Los borradores nuevos reemplazan a los anteriores de cada imagen."),
+          h("p", { class: "nota" }, plural(lista.length, "imagen reconocida", "imágenes reconocidas") + ". Revisa que cada vista previa corresponda a su imagen. Los borradores nuevos reemplazan a los anteriores."),
           lista.length ? filas : vacio("Ningún archivo coincide", "Los nombres deben verse así: idDeImagen__borrador-1.png o idDeImagen__final.png."),
           ignorados.length ? h("p", { class: "nota" }, "Ignorados (" + ignorados.length + "): " + ignorados.slice(0, 8).join(", ") + (ignorados.length > 8 ? "…" : "")) : null,
           lista.length ? h("label", { class: "check-row" }, mover, "Pasar a “Por aprobar” las que reciban borradores y estén pendientes o en creación") : null,
@@ -1566,8 +1583,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
           });
         }, Promise.resolve()).then(function () { est.corriendo = false; est.terminado = true; pintarHoja(); aviso("Importación terminada."); });
       }
-    });
-    inp.click();
+    }
   }
   function subirBorradores(i) {
     elegirArchivo({ key: "b" + i.id, carpeta: i.negocioId, listo: function (res) {
