@@ -23,6 +23,7 @@ GitHub Pages publica la rama `main` (carpeta raíz) en https://racg-cpu.github.i
 - Inicio de sesión con correo y contraseña (Supabase Auth). Los clientes se registran solos ("Soy cliente nuevo"); no ven nada hasta que el admin les asigna negocios en **Accesos**.
 - El código de la app viene del antiguo artefacto de claude.ai: usa un adaptador (`crearDb`, `MAPAS`) que imita la API `collection().onSnapshot/add/doc().update` y la traduce a tablas de Supabase (camelCase ↔ snake_case). Si agregas un campo, agrégalo en `MAPAS` y en la tabla.
 - No hay tiempo real: relee todo cada 20 s mientras la pestaña está visible.
+- **Importar lote** (botón en Inicio del admin, función `importarLote`): sube muchos archivos de una vez. Nombres: `<idDeImagen>__borrador-1.png`, `__borrador-2.png`… o `<idDeImagen>__final.png`. Los borradores importados reemplazan a los anteriores; opcionalmente pasa a "Por aprobar" las pendientes o en creación. Úsalo para cargar exportaciones de Canva: tú preparas y nombras los archivos y Raúl los selecciona con su sesión de admin.
 - Todo el texto de usuario se pinta con `textContent` mediante el helper `h()`. No uses `innerHTML` con datos.
 - Diseño: marino `#001F3F`, oro `#E2C27A`/`#9D791C`, cristal con filo dorado; títulos en Cormorant Garamond y texto en Hanken Grotesk. Mantén ese estilo.
 

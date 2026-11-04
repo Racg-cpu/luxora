@@ -1137,7 +1137,8 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
     if (adminActivo()) {
       add(hero, [h("p", { class: "kicker" }, cap(new Date().toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" }))),
         h("h1", { class: "h1" }, "Todos tus ", h("span", { class: "iri" }, "negocios")),
-        h("p", { class: "lead" }, "Entra a un negocio para subir borradores, cambiar estados, cargar reportes o ver lo que pidió el cliente.")]);
+        h("p", { class: "lead" }, "Entra a un negocio para subir borradores, cambiar estados, cargar reportes o ver lo que pidió el cliente."),
+        h("div", { class: "acciones" }, h("button", { class: "btn-glass", type: "button", onclick: importarLote }, "Importar lote de imágenes"))]);
     } else {
       var a = S.verComo || accesoActual() || {};
       add(hero, [h("p", { class: "kicker" }, "Portal de clientes"),
@@ -1492,6 +1493,81 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       else if (s) add(p, s);
     });
     return p;
+  }
+  /* ---------- importar lote ----------
+     Nombres de archivo: <idDeImagen>__borrador-1.png, <idDeImagen>__borrador-2.png, … o <idDeImagen>__final.png
+     Los borradores importados REEMPLAZAN a los anteriores de esa imagen. */
+  function importarLote() {
+    if (!S.assets) { aviso("Para importar entra con tu cuenta de administrador."); return; }
+    var inp = document.createElement("input");
+    inp.type = "file"; inp.multiple = true; inp.setAttribute("accept", TIPOS.join(","));
+    inp.addEventListener("change", function () {
+      var files = Array.prototype.slice.call(inp.files || []);
+      if (!files.length) return;
+      var grupos = {}, ignorados = [];
+      files.forEach(function (f) {
+        var m = /^(.+?)__(borrador-(\d+)|final)\.[a-z0-9]+$/i.exec(f.name || "");
+        var img = m ? imgPorId(m[1]) : null;
+        if (!img || !tipoDe(f)) { ignorados.push(f.name); return; }
+        var g = grupos[img.id] = grupos[img.id] || { img: img, borradores: [], final: null };
+        if (m[2].toLowerCase() === "final") g.final = f; else g.borradores.push({ n: +m[3], f: f });
+      });
+      var lista = Object.keys(grupos).map(function (k) { var g = grupos[k]; g.borradores.sort(function (x, y) { return x.n - y.n; }); return g; })
+        .sort(function (x, y) { return porFecha(x.img, y.img); });
+      var total = lista.reduce(function (n, g) { return n + g.borradores.length + (g.final ? 1 : 0); }, 0);
+      var est = { corriendo: false, hechos: 0, errores: [], terminado: false, mover: true };
+      abrirHoja(function () {
+        var filas = h("div", { class: "filas" });
+        lista.forEach(function (g) {
+          var n = negPorId(g.img.negocioId);
+          add(filas, h("div", { class: "fila" }, thumb(g.img, "mini"),
+            h("div", { class: "fila-mid" }, h("span", { class: "fila-titulo" }, g.img.titulo), h("span", { class: "fila-sub" }, marcadorNeg(n), (E[g.img.estado] || E.pendiente).l)),
+            h("span", { class: "pill e-info" }, [g.borradores.length ? plural(g.borradores.length, "borrador", "borradores") : null, g.final ? "versión final" : null].filter(Boolean).join(" + "))));
+        });
+        var mover = h("input", { type: "checkbox", checked: est.mover, onchange: function (e) { est.mover = e.target.checked; } });
+        var btn = h("button", { class: "btn", type: "button", disabled: est.corriendo || est.terminado || !total, onclick: function () { correr(); } },
+          est.terminado ? "Listo" : est.corriendo ? "Subiendo " + est.hechos + " de " + total + "…" : "Subir " + plural(total, "archivo", "archivos"));
+        return h("div", { class: "seccion" }, cabHoja("Importar lote"),
+          h("p", { class: "nota" }, plural(lista.length, "imagen reconocida", "imágenes reconocidas") + ". Los borradores nuevos reemplazan a los anteriores de cada imagen."),
+          lista.length ? filas : vacio("Ningún archivo coincide", "Los nombres deben verse así: idDeImagen__borrador-1.png o idDeImagen__final.png."),
+          ignorados.length ? h("p", { class: "nota" }, "Ignorados (" + ignorados.length + "): " + ignorados.slice(0, 8).join(", ") + (ignorados.length > 8 ? "…" : "")) : null,
+          lista.length ? h("label", { class: "check-row" }, mover, "Pasar a “Por aprobar” las que reciban borradores y estén pendientes o en creación") : null,
+          est.errores.length ? h("p", { class: "error" }, "No se pudieron subir: " + est.errores.join(", ")) : null,
+          est.terminado ? h("p", { class: "nota" }, "Importación terminada. Tus clientes ya pueden ver los borradores en su portal.") : null,
+          h("div", { class: "acciones" }, btn, est.terminado ? h("button", { class: "btn-glass", type: "button", onclick: cerrarHoja }, "Cerrar") : null));
+      }, true);
+      function subirUno(f, carpeta) {
+        return S.assets.upload(f, { type: tipoDe(f), carpeta: carpeta }).then(function (r) {
+          est.hechos++; pintarHoja();
+          return { id: r.id, tipo: r.contentType, nombre: f.name };
+        });
+      }
+      function correr() {
+        if (est.corriendo) return;
+        est.corriendo = true; pintarHoja();
+        lista.reduce(function (p, g) {
+          return p.then(function () {
+            var img = imgPorId(g.img.id) || g.img, viejos = [];
+            var pasos = g.borradores.reduce(function (q, b) { return q.then(function (acc) { return subirUno(b.f, img.negocioId).then(function (x) { acc.push(x); return acc; }); }); }, Promise.resolve([]));
+            return pasos.then(function (nuevos) {
+              var d = {};
+              if (nuevos.length) {
+                viejos = (img.borradores || []).map(function (b) { return b.id; });
+                d.borradores = nuevos; d.elegida = null;
+                if (est.mover && (img.estado === "pendiente" || img.estado === "creacion")) { d.estado = "aprobacion"; d.estadoTs = Date.now(); }
+              }
+              var fin = g.final ? subirUno(g.final, img.negocioId).then(function (x) {
+                if (img.archivoId) viejos.push(img.archivoId);
+                d.archivoId = x.id; d.archivoTipo = x.tipo; d.archivoNombre = x.nombre;
+              }) : Promise.resolve();
+              return fin.then(function () { return Object.keys(d).length ? upd("imagenes", img.id, d) : null; })
+                .then(function () { viejos.forEach(function (v) { S.assets.delete(v).catch(function () {}); }); });
+            }).catch(function () { est.errores.push(img.titulo); pintarHoja(); });
+          });
+        }, Promise.resolve()).then(function () { est.corriendo = false; est.terminado = true; pintarHoja(); aviso("Importación terminada."); });
+      }
+    });
+    inp.click();
   }
   function subirBorradores(i) {
     elegirArchivo({ key: "b" + i.id, carpeta: i.negocioId, listo: function (res) {
