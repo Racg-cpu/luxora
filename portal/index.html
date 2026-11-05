@@ -30,7 +30,7 @@
   --btn-solid: #e2c27a;
   --btn-fg: #001f3f;
   --field: rgba(0, 20, 42, 0.55);
-  --au1: #9d791c; --au2: #1d4f91; --au3: #c9a34e; --au4: #0f3a73; --au5: #9d791c;
+  --au1: #b08a2e; --au2: #1d4f91; --au3: #0d3166; --au4: #0f3a73; --au5: #17427c;
   --iri: linear-gradient(180deg, #f3dca6, #c9a34e);
   --late: #ff9b8f; --late-bg: rgba(255, 90, 80, 0.16);
   --soon: #f3c46b; --soon-bg: rgba(226, 160, 40, 0.18);
@@ -68,7 +68,7 @@ img { max-width: 100%; }
 /* Aurora */
 .aurora { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
 .aurora i { position: absolute; width: 58vmax; height: 58vmax; border-radius: 50%; filter: blur(120px); opacity: 0.42; animation: flota 30s ease-in-out infinite alternate; }
-.aurora i:nth-child(1) { background: var(--au1); top: -20vmax; left: -14vmax; }
+.aurora i:nth-child(1) { background: var(--au1); top: -24vmax; left: -18vmax; width: 46vmax; height: 46vmax; opacity: 0.26; }
 .aurora i:nth-child(2) { background: var(--au2); top: -12vmax; right: -20vmax; animation-duration: 36s; }
 .aurora i:nth-child(3) { background: var(--au3); bottom: -24vmax; left: 8vmax; animation-duration: 33s; }
 .aurora i:nth-child(4) { background: var(--au4); bottom: -22vmax; right: -10vmax; animation-duration: 40s; opacity: 0.55; }
@@ -442,7 +442,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
 .thumb img { transition: transform 0.6s var(--ease); }
 .card:hover .thumb img { transform: scale(1.04); }
 .brillo { position: relative; display: inline-block; overflow: hidden; }
-.brillo::after { content: ""; position: absolute; top: -10%; bottom: -10%; width: 40%; left: 0; background: linear-gradient(90deg, transparent, rgba(255, 244, 214, 0.55), transparent); mix-blend-mode: screen; animation: destello 6s ease-in-out infinite 1.2s; pointer-events: none; }
+.brillo img { animation: respira 5s ease-in-out infinite 0.8s; }
 .login-card .logo-completo, .login-card .logo.xl { animation: respira 5s ease-in-out infinite; }
 .pill.e-late { animation: pulso 2.4s ease-out infinite; }
 .marca .logo { transition: transform 0.5s var(--ease); }
@@ -461,6 +461,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
   .nav { margin-left: 0; width: 100%; }
   .stat { min-width: 0; flex: 1 1 calc(50% - 10px); }
   .hoja { border-radius: 26px; }
+  .nav { overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 82%, transparent); mask-image: linear-gradient(90deg, #000 82%, transparent); }
   .datos { grid-template-columns: 1fr; gap: 2px; }
   .datos dd { margin-bottom: 8px; }
 }
@@ -1451,7 +1452,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
         var op = h(puedeElegir ? "button" : "div", { class: "opcion", type: puedeElegir ? "button" : null, "aria-pressed": elegida ? "true" : "false", onclick: puedeElegir ? function () { S.opcionElegida[i.id] = k; pintarHoja(); } : null },
           archivoThumb(b, n),
           h("span", { class: "opcion-pie" }, "Opción " + (k + 1),
-            h("span", { class: "acciones", style: "gap:4px" },
+            h("span", { class: "acciones", style: "gap:14px" },
               h("a", { class: "txt", href: blobUrl(b.id), target: "_blank", rel: "noopener", onclick: function (e) { e.stopPropagation(); } }, "Ver"),
               admin ? h("button", { class: "txt" + (S.confirma === "b" + b.id ? " confirmar" : ""), type: "button", onclick: function (e) {
                 e.stopPropagation();
@@ -1490,7 +1491,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
           i.estado === "aceptada" ? h("button", { class: "btn-glass ok", type: "button", onclick: function () { setEstado(i, "publicada"); } }, "Marcar publicada") : null,
           h("button", { class: "btn-glass", type: "button", onclick: function () { formImagen(i, i.negocioId); } }, "Editar datos"),
           h("button", { class: "btn-glass", type: "button", onclick: function () {
-            copiar("Hola, ya está lista \"" + i.titulo + "\" para que la revises en Luxora" + (APP_URL ? ": " + APP_URL : "") + ". Entra con tu código y PIN.", "Mensaje copiado. Pégalo en WhatsApp.");
+            copiar("Hola, ya está lista \"" + i.titulo + "\" para que la revises en Luxora" + (APP_URL ? ": " + APP_URL : "") + ". Entra con tu correo y contraseña.", "Mensaje copiado. Pégalo en WhatsApp.");
           } }, "Copiar aviso para WhatsApp"),
           i.estado !== "cancelada" ? h("button", { class: "btn-glass peligro", type: "button", onclick: function () { setEstado(i, "cancelada"); } }, "Cancelar imagen") : null,
           h("button", { class: "btn-glass peligro" + (S.confirma === "del" + i.id ? " confirmar" : ""), type: "button", onclick: function () {
