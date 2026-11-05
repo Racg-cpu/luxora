@@ -185,7 +185,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .acciones { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .campo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .campo > span { font-size: 13px; font-weight: 600; color: var(--muted); }
-input[type="text"], input[type="email"], input[type="password"], input[type="date"], input[type="number"], input[type="tel"], select, textarea {
+input[type="text"], input[type="email"], input[type="password"], input[type="date"], input[type="number"], input[type="tel"], input[type="url"], select, textarea {
   font: inherit; color: var(--ink); background: var(--field); border: 1px solid var(--line);
   border-radius: 14px; padding: 11px 13px; min-width: 0; width: 100%;
 }
@@ -323,6 +323,16 @@ button.fila:hover { background: var(--glass-hi); }
 .decision { padding: 12px 14px; border-radius: 18px; display: flex; gap: 10px 14px; flex-wrap: wrap; align-items: center; justify-content: space-between; font-weight: 600; }
 .decision.ok { background: var(--ok-bg); color: var(--ok); }
 .decision.cambios { background: var(--soon-bg); color: var(--soon); }
+.mas-detalles { grid-column: 1 / -1; border: 1px solid var(--line); border-radius: 18px; padding: 2px 14px; min-width: 0; }
+.mas-detalles > summary { cursor: pointer; font-weight: 700; color: var(--gold); padding: 11px 0; }
+.mas-detalles > .form { padding-bottom: 14px; }
+.checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.check { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: 13.5px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.check input { accent-color: var(--gold); margin: 0; }
+.check:has(input:checked) { color: var(--ink); border-color: var(--gold); background: rgba(226, 194, 122, 0.12); }
+.datos { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: 14px; }
+.datos dt { color: var(--muted); font-weight: 600; }
+.datos dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* Hoja (modal) */
 .velo { position: fixed; inset: 0; z-index: 50; background: var(--veil); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: calc(env(safe-area-inset-top, 0px) + 16px) max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 16px) max(16px, env(safe-area-inset-left, 0px)); }
@@ -451,6 +461,8 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
   .nav { margin-left: 0; width: 100%; }
   .stat { min-width: 0; flex: 1 1 calc(50% - 10px); }
   .hoja { border-radius: 26px; }
+  .datos { grid-template-columns: 1fr; gap: 2px; }
+  .datos dd { margin-bottom: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -502,7 +514,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
   var S = {
     db: null, assets: null, listo: false, sinDatos: false,
     isOwner: false, isAdmin: false, guest: false, escribe: null,
-    negocios: [], imagenes: [], comentarios: [], solicitudes: [], reportes: [], accesos: [], tareas: [], marca: {},
+    negocios: [], imagenes: [], comentarios: [], solicitudes: [], reportes: [], accesos: [], tareas: [], marca: {}, v5: false,
     cargado: {}, sesion: null, authUid: null, authEmail: "", modoLogin: "entrar", errorCarga: "", verComo: null, filtro: {}, filtroMesa: "todos",
     subiendo: {}, confirma: null, confirmaT: null, fallos: 0, bloqueo: 0, opcionElegida: {}
   };
@@ -536,6 +548,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
   function aIso(v) { return v ? new Date(v).toISOString() : null; }
   function fDb(v) { return v ? v : null; }
   function fApp(v) { return v || ""; }
+  function obj(v) { return v && typeof v === "object" && !Array.isArray(v) ? v : {}; }
   function errSb(e) {
     if (!e) return { code: "store_unavailable" };
     var c = e.code === "42501" || e.code === "PGRST301" || /row-level security|permission denied/i.test(e.message || "") ? "invalid_argument" : "store_unavailable";
@@ -549,9 +562,11 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       ["titulo", "titulo"], ["negocioId", "negocio_id"], ["estado", "estado"], ["estadoTs", "estado_ts", aIso, aMs],
       ["publicadaTs", "publicada_ts", aIso, aMs], ["fecha", "fecha", fDb, fApp], ["formato", "formato"],
       ["borradores", "borradores", function (v) { return v || []; }, function (v) { return v || []; }],
-      ["elegida", "elegida"], ["creado", "creado", aIso, aMs]] },
+      ["elegida", "elegida"], ["creado", "creado", aIso, aMs],
+      ["detalles", "detalles", obj, obj], ["fechaBorrador", "fecha_borrador", fDb, fApp]] },
     comentarios: { tabla: "comentarios", campos: [["imagenId", "imagen_id"], ["autor", "autor"], ["tipo", "tipo"], ["texto", "texto"], ["opcion", "opcion"], ["ts", "creado", aIso, aMs]] },
-    solicitudes: { tabla: "solicitudes", campos: [["negocioId", "negocio_id"], ["titulo", "titulo"], ["detalle", "detalle"], ["fecha", "fecha", fDb, fApp], ["formato", "formato"], ["estado", "estado"], ["ts", "creado", aIso, aMs]] },
+    solicitudes: { tabla: "solicitudes", campos: [["negocioId", "negocio_id"], ["titulo", "titulo"], ["detalle", "detalle"], ["fecha", "fecha", fDb, fApp], ["formato", "formato"], ["estado", "estado"], ["ts", "creado", aIso, aMs],
+      ["detalles", "detalles", obj, obj], ["fechaBorrador", "fecha_borrador", fDb, fApp]] },
     reportes: { tabla: "reportes", archivo: true, campos: [
       ["titulo", "titulo"], ["negocioId", "negocio_id"], ["plataforma", "plataforma"], ["desde", "desde", fDb, fApp], ["hasta", "hasta", fDb, fApp],
       ["gasto", "gasto"], ["alcance", "alcance"], ["resultados", "resultados"], ["tipoResultado", "tipo_resultado"], ["notas", "notas"], ["creado", "creado", aIso, aMs]] },
@@ -986,14 +1001,17 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       if (n.type === "file") return;
       m[n.id] = n.type === "checkbox" ? n.checked : n.value;
     });
+    root.querySelectorAll("details[id]").forEach(function (n) { m["@" + n.id] = n.open; });
     var a = document.activeElement;
     return { m: m, foco: a && root.contains(a) && a.id ? a.id : null };
   }
   function restaurar(root, c) {
     Object.keys(c.m).forEach(function (id) {
-      var n = root.querySelector("#" + CSS.escape(id));
+      var det = id.charAt(0) === "@";
+      var n = root.querySelector("#" + CSS.escape(det ? id.slice(1) : id));
       if (!n) return;
-      if (n.type === "checkbox") n.checked = c.m[id]; else n.value = c.m[id];
+      if (det) n.open = c.m[id];
+      else if (n.type === "checkbox") n.checked = c.m[id]; else n.value = c.m[id];
     });
     if (c.foco) {
       var n = root.querySelector("#" + CSS.escape(c.foco));
@@ -1329,16 +1347,15 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
     var n = negPorId(s.negocioId), admin = adminActivo();
     var est = s.estado === "nueva" ? h("span", { class: "pill e-late" }, "Nueva") : s.estado === "convertida" ? h("span", { class: "pill e-ok" }, "En la lista") : h("span", { class: "pill e-idle" }, "Descartada");
     var acc = admin && s.estado === "nueva" ? h("div", { class: "acciones" },
-      h("button", { class: "btn-glass ok", type: "button", onclick: function () {
-        crear("imagenes", { titulo: s.titulo, negocioId: s.negocioId, fecha: s.fecha || "", notas: s.detalle || "", formato: s.formato || "", estado: "pendiente", estadoTs: Date.now(), creado: Date.now(), borradores: [] })
-          .then(function () { return upd("solicitudes", s.id, { estado: "convertida" }); }).then(function () { aviso("Solicitud agregada como imagen pendiente."); });
-      } }, "Crear imagen"),
+      h("button", { class: "btn-glass ok", type: "button", onclick: function (e) { e.currentTarget.disabled = true; aceptarSolicitud(s); } }, "Crear imagen"),
       h("button", { class: "btn-glass peligro", type: "button", onclick: function () { upd("solicitudes", s.id, { estado: "descartada" }); } }, "Descartar")) : est;
     return h("div", { class: "fila" },
       fechaNum(s.fecha, s.estado !== "nueva"),
       h("div", { class: "fila-mid" },
         h("span", { class: "fila-titulo" }, s.titulo),
-        h("span", { class: "fila-sub" }, adminActivo() ? marcadorNeg(n) : null, s.detalle ? s.detalle : null, "Pedida el " + fTs(s.ts))),
+        h("span", { class: "fila-sub" }, adminActivo() ? marcadorNeg(n) : null, s.detalle ? s.detalle : null,
+          obj(s.detalles).tipo ? h("span", null, obj(s.detalles).tipo) : null, s.fechaBorrador ? h("span", null, "Borrador para el " + fCorta(s.fechaBorrador)) : null, "Pedida el " + fTs(s.ts)),
+        admin && s.estado === "nueva" && listaDetalles(s.detalles).length ? h("details", { class: "mas-detalles", style: "margin-top:6px" }, h("summary", null, "Ver todo lo que pidió"), bloqueDetalles(s.detalles, s.fechaBorrador, " ")) : null),
       acc);
   }
 
@@ -1451,6 +1468,9 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
 
     /* Acciones del cliente */
     if (!admin && (i.estado === "aprobacion" || i.estado === "cambios")) add(root, bloqueCliente(i));
+
+    /* Lo que se pidió (campos opcionales) */
+    add(root, bloqueDetalles(i.detalles, i.fechaBorrador, "Lo que se pidió"));
 
     /* Administración */
     if (admin) {
@@ -1668,15 +1688,17 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       fo.value = img ? img.formato || "" : "Post 4:5";
       var no = h("textarea", { id: "fi-notas", maxlength: "800", placeholder: "Texto de la imagen, precios confirmados, referencias, links de Canva. El cliente no ve estas notas." });
       no.value = img ? img.notas || "" : "";
+      var cd = S.v5 ? camposDetalles(img ? img.detalles : {}, img ? img.fechaBorrador : "", false) : null;
       var btn = h("button", { class: "btn", type: "submit" }, img ? "Guardar cambios" : "Crear imagen");
       var form = h("form", { class: "form", onsubmit: function (e) {
         e.preventDefault();
         var titulo = t.value.trim(); if (!titulo) return;
         btn.disabled = true;
         var d = { titulo: titulo, negocioId: ng.value, fecha: fe.value || "", formato: fo.value, notas: no.value.trim() };
+        if (cd) { var x = cd.leer(); d.detalles = x.detalles; d.fechaBorrador = x.fechaBorrador; }
         var p = img ? upd("imagenes", img.id, d) : crear("imagenes", Object.assign(d, { estado: "pendiente", estadoTs: Date.now(), creado: Date.now(), borradores: [] }));
         p.then(function (ref) { if (img) abrirImagen(img.id); else { cerrarHoja(); aviso("Imagen creada. Ábrela para subir borradores."); } }).catch(function () { btn.disabled = false; });
-      } }, campo("Imagen", t, true), campo("Negocio", ng), campo("Fecha de publicación", fe), campo("Formato", fo, true), campo("Notas internas", no, true), h("div", { class: "acciones full" }, btn, h("button", { class: "btn-glass", type: "button", onclick: function () { if (img) abrirImagen(img.id); else cerrarHoja(); } }, "Cancelar")));
+      } }, campo("Imagen", t, true), campo("Negocio", ng), campo("Fecha de publicación", fe), campo("Formato", fo, true), cd ? cd.nodo : null, campo("Notas internas", no, true), h("div", { class: "acciones full" }, btn, h("button", { class: "btn-glass", type: "button", onclick: function () { if (img) abrirImagen(img.id); else cerrarHoja(); } }, "Cancelar")));
       return h("div", { class: "seccion" }, cabHoja(img ? "Editar imagen" : "Nueva imagen"), form);
     });
   }
@@ -1736,35 +1758,125 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       return h("div", { class: "seccion" }, cabHoja("Subir reporte de anuncios"), h("p", { class: "nota" }, "Copia los números del Administrador de anuncios. El costo por resultado se calcula solo."), form);
     }, true);
   }
+  /* ---------- detalles opcionales de una imagen ---------- */
+  var TIPOS_IMG = ["Promoción o descuento", "Informativa", "Fecha especial", "Producto o servicio nuevo", "Otra"];
+  var DONDE = ["Facebook", "Instagram", "Estados de WhatsApp", "Pantalla del local", "Impresa"];
+  function camposDetalles(det, fBorr, abierto) {
+    det = obj(det);
+    var donde = Array.isArray(det.donde) ? det.donde : [];
+    var ti = h("select", { id: "fd-tipo" }, h("option", { value: "" }, "Elige una"), TIPOS_IMG.map(function (x) { return h("option", { value: x }, x); }));
+    ti.value = det.tipo || "";
+    var pr = h("input", { id: "fd-producto", type: "text", maxlength: "120", placeholder: "Ej. Pastel de tres leches", value: det.producto || "" });
+    var inc = h("textarea", { id: "fd-incluye", maxlength: "600", placeholder: "Uno por renglón. Ej.\nRebanada individual\nPastel completo" });
+    inc.value = det.incluye || "";
+    var pn = h("input", { id: "fd-pnormal", type: "text", maxlength: "30", placeholder: "Ej. $200", value: det.precioNormal || "" });
+    var pp = h("input", { id: "fd-ppromo", type: "text", maxlength: "30", placeholder: "Ej. $150", value: det.precioPromo || "" });
+    var de = h("input", { id: "fd-desc", type: "text", maxlength: "30", placeholder: "Ej. 25% o 2x1", value: det.descuento || "" });
+    var op = h("select", { id: "fd-opciones" }, h("option", { value: "" }, "Las que recomiende Luxora"), ["1", "2", "3"].map(function (x) { return h("option", { value: x }, x); }));
+    op.value = det.opciones ? String(det.opciones) : "";
+    var vd = h("input", { id: "fd-vdesde", type: "date", value: det.vigenciaDesde || "" });
+    var vh = h("input", { id: "fd-vhasta", type: "date", value: det.vigenciaHasta || "" });
+    var fb = h("input", { id: "fd-fborrador", type: "date", value: fBorr || "" });
+    var checks = h("div", { class: "checks", role: "group", "aria-label": "Dónde se publicará" }, DONDE.map(function (x, k) {
+      return h("label", { class: "check" }, h("input", { id: "fd-donde-" + k, type: "checkbox", value: x, checked: donde.indexOf(x) >= 0 }), x);
+    }));
+    var to = h("textarea", { id: "fd-texto", maxlength: "400", placeholder: "Ej. Válido de lunes a jueves. Hasta agotar existencias." });
+    to.value = det.textoObligatorio || "";
+    var rf = h("input", { id: "fd-ref", type: "url", maxlength: "300", placeholder: "Enlace a una foto o publicación de ejemplo", value: det.referencia || "" });
+    var nodo = h("details", { id: "fd-mas", class: "mas-detalles", open: abierto ? true : null }, h("summary", null, "Más detalles (opcional)"),
+      h("div", { class: "form" },
+        campo("Tipo de imagen", ti), campo("Producto o servicio", pr),
+        campo("¿Qué incluye? (presentaciones, estudios, sabores…)", inc, true),
+        campo("Precio normal", pn), campo("Precio con promoción", pp),
+        campo("Descuento", de), campo("¿Cuántas opciones quieres ver?", op),
+        h("p", { class: "nota full" }, "Pon precios y descuentos solo si ya están confirmados."),
+        campo("Promoción válida desde", vd), campo("Promoción válida hasta", vh),
+        campo("¿Para cuándo quieres el primer borrador?", fb, true),
+        h("div", { class: "campo full" }, h("span", null, "¿Dónde se publicará?"), checks),
+        campo("Texto que debe llevar sí o sí", to, true),
+        campo("Referencia (enlace)", rf, true)));
+    function leer() {
+      var d = {};
+      function p(k, v) { v = String(v || "").trim(); if (v) d[k] = v; }
+      p("tipo", ti.value); p("producto", pr.value); p("incluye", inc.value);
+      p("precioNormal", pn.value); p("precioPromo", pp.value); p("descuento", de.value);
+      p("vigenciaDesde", vd.value); p("vigenciaHasta", vh.value);
+      p("textoObligatorio", to.value); p("referencia", rf.value);
+      if (op.value) d.opciones = +op.value;
+      var ds = Array.prototype.filter.call(checks.querySelectorAll("input"), function (c) { return c.checked; }).map(function (c) { return c.value; });
+      if (ds.length) d.donde = ds;
+      return { detalles: d, fechaBorrador: fb.value || "" };
+    }
+    return { nodo: nodo, leer: leer };
+  }
+  function listaDetalles(det, fBorr) {
+    det = obj(det);
+    var r = [];
+    function p(l, v) { if (v) r.push([l, String(v)]); }
+    p("Tipo", det.tipo); p("Producto o servicio", det.producto); p("Incluye", det.incluye);
+    p("Precio normal", det.precioNormal); p("Precio con promoción", det.precioPromo); p("Descuento", det.descuento);
+    if (det.vigenciaDesde || det.vigenciaHasta) p("Vigencia", (det.vigenciaDesde ? fCorta(det.vigenciaDesde) : "…") + " – " + (det.vigenciaHasta ? fCorta(det.vigenciaHasta) : "…"));
+    p("Primer borrador", fBorr ? fCorta(fBorr) : "");
+    p("Dónde se publica", Array.isArray(det.donde) ? det.donde.join(", ") : "");
+    p("Opciones", det.opciones);
+    p("Texto obligatorio", det.textoObligatorio); p("Referencia", det.referencia);
+    return r;
+  }
+  function textoDetalles(det, fBorr) { return listaDetalles(det, fBorr).map(function (x) { return x[0] + ": " + x[1]; }).join(". "); }
+  function bloqueDetalles(det, fBorr, titulo) {
+    var l = listaDetalles(det, fBorr);
+    if (!l.length) return null;
+    var dl = h("dl", { class: "datos" });
+    l.forEach(function (x) {
+      var v = x[0] === "Referencia" && /^https?:\/\//i.test(x[1]) ? h("a", { href: x[1], target: "_blank", rel: "noopener", style: "color:var(--info)" }, "Abrir enlace") : x[1];
+      add(dl, [h("dt", null, x[0]), h("dd", null, v)]);
+    });
+    return h("div", { class: "seccion", style: "gap:8px" }, h("span", { class: "kicker" }, titulo || "Lo que se pidió"), dl);
+  }
+
+  function aceptarSolicitud(s) {
+    var d = { titulo: s.titulo, negocioId: s.negocioId, fecha: s.fecha || "", notas: s.detalle || "", formato: s.formato || "", estado: "pendiente", estadoTs: Date.now(), creado: Date.now(), borradores: [] };
+    if (S.v5) { d.detalles = obj(s.detalles); d.fechaBorrador = s.fechaBorrador || ""; }
+    return crear("imagenes", d)
+      .then(function () { return upd("solicitudes", s.id, { estado: "convertida" }); })
+      .then(function () { aviso("Solicitud agregada como imagen pendiente."); });
+  }
+
   function formSolicitud(n) {
     abrirHoja(function () {
       var t = h("input", { id: "fs-titulo", type: "text", maxlength: "120", required: true, placeholder: "Ej. Postre del mes" });
       var d = h("textarea", { id: "fs-detalle", maxlength: "600", placeholder: "Qué producto o servicio, precio o promoción confirmada, texto que debe llevar." });
       var fe = h("input", { id: "fs-fecha", type: "date" });
       var fo = h("select", { id: "fs-formato" }, FORMATOS.map(function (f) { return h("option", { value: f }, f); }));
+      var cd = camposDetalles({}, "");
       if (S.escribe === false) {
         var go = h("a", { class: "btn", target: "_blank", rel: "noopener" }, "Enviar por WhatsApp");
         var armar = function () {
-          var txt = "Quiero una imagen para " + n.nombre + ": " + t.value.trim() + (d.value.trim() ? ". " + d.value.trim() : "") + (fe.value ? ". Para el " + fCorta(fe.value) : "") + ". Formato: " + fo.value + ".";
+          var x = cd.leer(), extra = textoDetalles(x.detalles, x.fechaBorrador);
+          var txt = "Quiero una imagen para " + n.nombre + ": " + t.value.trim() + (d.value.trim() ? ". " + d.value.trim() : "") + (fe.value ? ". Se publica el " + fCorta(fe.value) : "") + ". Formato: " + fo.value + "." + (extra ? " " + extra + "." : "");
           go.href = waLink(txt);
         };
-        [t, d, fe, fo].forEach(function (x) { x.addEventListener("input", armar); x.addEventListener("change", armar); });
+        [t, d, fe, fo, cd.nodo].forEach(function (x) { x.addEventListener("input", armar); x.addEventListener("change", armar); });
         setTimeout(armar, 0);
-        return h("div", { class: "seccion" }, cabHoja("Pedir una imagen"), h("div", { class: "form" }, campo("¿Qué imagen necesitas?", t, true), campo("Detalles", d, true), campo("¿Para cuándo?", fe), campo("Formato", fo), h("div", { class: "acciones full" }, go)), h("p", { class: "nota" }, "Tu acceso solo permite ver, así que la solicitud se manda por WhatsApp ya escrita."));
+        return h("div", { class: "seccion" }, cabHoja("Pedir una imagen"), h("div", { class: "form" }, campo("¿Qué imagen necesitas?", t, true), campo("Detalles", d, true), campo("¿Cuándo se publica?", fe), campo("Formato", fo), cd.nodo, h("div", { class: "acciones full" }, go)), h("p", { class: "nota" }, "Tu acceso solo permite ver, así que la solicitud se manda por WhatsApp ya escrita."));
       }
       var btn = h("button", { class: "btn", type: "submit" }, "Enviar solicitud");
       var form = h("form", { class: "form", onsubmit: function (e) {
         e.preventDefault();
         if (!t.value.trim()) return;
         btn.disabled = true;
-        col("solicitudes").add({ negocioId: n.id, titulo: t.value.trim(), detalle: d.value.trim(), fecha: fe.value || "", formato: fo.value, estado: "nueva", ts: Date.now() })
+        var x = cd.leer();
+        var datos = { negocioId: n.id, titulo: t.value.trim(), detalle: d.value.trim(), fecha: fe.value || "", formato: fo.value, estado: "nueva", ts: Date.now() };
+        if (S.v5) { datos.detalles = x.detalles; datos.fechaBorrador = x.fechaBorrador; }
+        else { var extra = textoDetalles(x.detalles, x.fechaBorrador); if (extra) datos.detalle = (datos.detalle ? datos.detalle + "\n\n" : "") + extra; }
+        col("solicitudes").add(datos)
           .then(function () { cerrarHoja(); aviso("Solicitud enviada. Te avisamos cuando esté el borrador."); })
           .catch(function (e) {
             btn.disabled = false;
             if (e && e.code === "invalid_argument") { S.escribe = false; pintarHoja(); aviso("Tu acceso solo permite ver. Envía la solicitud por WhatsApp."); }
             else aviso(errMsg(e));
           });
-      } }, campo("¿Qué imagen necesitas?", t, true), campo("Detalles", d, true), campo("¿Para cuándo?", fe), campo("Formato", fo), h("div", { class: "acciones full" }, btn));
+      } }, campo("¿Qué imagen necesitas?", t, true), campo("Detalles o ideas", d, true), campo("¿Cuándo se publica?", fe), campo("Formato", fo), cd.nodo, h("div", { class: "acciones full" }, btn));
       return h("div", { class: "seccion" }, cabHoja("Pedir una imagen", h("p", { class: "kicker" }, n.nombre)), form);
     }, true);
   }
@@ -1900,6 +2012,13 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       else if (d === 1) items.push({ p: 2, img: i, tag: "Es mañana", c: "e-soon" });
     });
     S.solicitudes.filter(function (s) { return s.estado === "nueva" && pasa(s); }).forEach(function (s) { items.push({ p: 1, sol: s, tag: "Solicitud nueva", c: "e-info" }); });
+    imgs.forEach(function (i) {
+      if (["pendiente", "creacion", "cambios"].indexOf(i.estado) < 0 || !i.fechaBorrador) return;
+      if (items.some(function (x) { return x.img === i; })) return;
+      var d = dias(i.fechaBorrador);
+      if (d === null || d > 1) return;
+      items.push({ p: d <= 0 ? 0 : 2, img: i, tag: d < 0 ? "Borrador atrasado" : d === 0 ? "Borrador hoy" : "Borrador mañana", c: d < 0 ? "e-late" : "e-soon" });
+    });
     S.tareas.filter(function (t) { return !t.hecha && pasa(t); }).forEach(function (t) {
       var d = dias(t.fecha); if (d === null || d > 1) return;
       items.push({ p: d < 0 ? 0 : d === 0 ? 1 : 2, tarea: t, tag: d < 0 ? textoDias(d) : d === 0 ? "Tarea de hoy" : "Tarea de mañana", c: d < 0 ? "e-late" : "e-soon" });
@@ -2072,7 +2191,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
     if (S.db && S.db.cerrar) S.db.cerrar();
     clearInterval(pollT); clearTimeout(listoT);
     S.db = null; S.assets = null; S.isOwner = false; S.isAdmin = false; S.escribe = null; S.verComo = null;
-    S.negocios = []; S.imagenes = []; S.comentarios = []; S.solicitudes = []; S.reportes = []; S.accesos = []; S.tareas = [];
+    S.negocios = []; S.imagenes = []; S.comentarios = []; S.solicitudes = []; S.reportes = []; S.accesos = []; S.tareas = []; S.v5 = false;
     S.cargado = {}; S.listoTodo = false;
   }
   function cerrarSesion() {
@@ -2102,6 +2221,11 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       db.doc("ajustes/marca").onSnapshot(function (sn) { S.marca = sn.exists ? sn.data() : {}; refrescar(); });
       if (S.isOwner) db.collection("privado/raul/tareas").onSnapshot(function (sn) { S.tareas = docs(sn); refrescar(); }, function () {});
       if (S.isAdmin) S.assets = crearAssets();
+      // Campos extra de las solicitudes (5-campos-extra.sql). Si aún no se corre ese SQL, el portal funciona como antes.
+      sb.from("solicitudes").select("detalles,fecha_borrador").limit(1).then(function (r) {
+        if (S.db !== db || r.error) return;
+        S.v5 = true; refrescar();
+      });
       // Sin tiempo real: se vuelve a leer cada 20 s mientras la página está a la vista.
       pollT = setInterval(function () { if (document.visibilityState === "visible" && S.db) S.db.recargarTodo(); }, 20000);
       listoT = setTimeout(function () { S.listoTodo = true; refrescar(); }, 3500);
