@@ -330,6 +330,15 @@ button.fila:hover { background: var(--glass-hi); }
 .check { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: 13.5px; font-weight: 600; color: var(--muted); cursor: pointer; }
 .check input { accent-color: var(--gold); margin: 0; }
 .check:has(input:checked) { color: var(--ink); border-color: var(--gold); background: rgba(226, 194, 122, 0.12); }
+.colores { display: flex; flex-wrap: wrap; gap: 12px; }
+.color-chip { display: flex; align-items: center; gap: 12px; padding: 10px 16px 10px 10px; border-radius: 18px; border: 1px solid var(--line); background: var(--field); color: var(--ink); text-align: left; cursor: pointer; }
+.color-chip:hover { border-color: var(--gold); }
+.color-muestra { width: 42px; height: 42px; border-radius: 12px; background: var(--m); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18); flex: 0 0 auto; }
+.color-txt { display: flex; flex-direction: column; font-size: 13px; }
+.color-txt span { color: var(--muted); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+.logo-thumb { background: #ffffff; }
+.logo-thumb img { object-fit: contain !important; padding: 14%; }
+.sobre-oscuro .logo-thumb { background: #0b1626; }
 .datos { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: 14px; }
 .datos dt { color: var(--muted); font-weight: 600; }
 .datos dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -515,7 +524,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
   var S = {
     db: null, assets: null, listo: false, sinDatos: false,
     isOwner: false, isAdmin: false, guest: false, escribe: null,
-    negocios: [], imagenes: [], comentarios: [], solicitudes: [], reportes: [], accesos: [], tareas: [], marca: {}, v5: false,
+    negocios: [], imagenes: [], comentarios: [], solicitudes: [], reportes: [], accesos: [], tareas: [], marcas: [], marca: {}, v5: false,
     cargado: {}, sesion: null, authUid: null, authEmail: "", modoLogin: "entrar", errorCarga: "", verComo: null, filtro: {}, filtroMesa: "todos",
     subiendo: {}, confirma: null, confirmaT: null, fallos: 0, bloqueo: 0, opcionElegida: {}
   };
@@ -568,6 +577,9 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
     comentarios: { tabla: "comentarios", campos: [["imagenId", "imagen_id"], ["autor", "autor"], ["tipo", "tipo"], ["texto", "texto"], ["opcion", "opcion"], ["ts", "creado", aIso, aMs]] },
     solicitudes: { tabla: "solicitudes", campos: [["negocioId", "negocio_id"], ["titulo", "titulo"], ["detalle", "detalle"], ["fecha", "fecha", fDb, fApp], ["formato", "formato"], ["estado", "estado"], ["ts", "creado", aIso, aMs],
       ["detalles", "detalles", obj, obj], ["fechaBorrador", "fecha_borrador", fDb, fApp]] },
+    marcas: { tabla: "marcas", campos: [
+      ["logos", "logos", function (v) { return v || []; }, function (v) { return v || []; }], ["colores", "colores", function (v) { return v || []; }, function (v) { return v || []; }],
+      ["tipografias", "tipografias"], ["datos", "datos", obj, obj], ["notas", "notas"], ["actualizado", "actualizado", aIso, aMs]] },
     reportes: { tabla: "reportes", archivo: true, campos: [
       ["titulo", "titulo"], ["negocioId", "negocio_id"], ["plataforma", "plataforma"], ["desde", "desde", fDb, fApp], ["hasta", "hasta", fDb, fApp],
       ["gasto", "gasto"], ["alcance", "alcance"], ["resultados", "resultados"], ["tipoResultado", "tipo_resultado"], ["notas", "notas"], ["creado", "creado", aIso, aMs]] },
@@ -1087,6 +1099,10 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
     if (r === "mesa") vista = S.isOwner ? vistaMesa() : vistaInicio();
     else if (r === "accesos" && S.isAdmin) vista = vistaAccesos();
     else if (r === "marca" && S.isAdmin) vista = vistaMarca();
+    else if (r.indexOf("marca-") === 0) {
+      var nm = negPorId(r.slice(6));
+      vista = nm && negociosVisibles().indexOf(nm) >= 0 ? vistaMarcaNegocio(nm) : vistaInicio();
+    }
     else if (r.indexOf("negocio-") === 0) {
       var n = negPorId(r.slice(8));
       vista = n && negociosVisibles().indexOf(n) >= 0 ? vistaNegocio(n) : vistaInicio();
@@ -1216,8 +1232,10 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
         admin ? h("div", { class: "acciones" },
           h("button", { class: "btn", type: "button", onclick: function () { formImagen(null, n.id); } }, "+ Nueva imagen"),
           h("button", { class: "btn-glass", type: "button", onclick: function () { formReporte(n.id); } }, "+ Reporte"),
+          S.cargado.marcas ? h("a", { class: "btn-glass", href: "#marca-" + n.id, style: "text-decoration:none" }, "Mi marca") : null,
           h("button", { class: "btn-glass", type: "button", onclick: function () { formNegocio(n); } }, "Editar")) :
-          h("div", { class: "acciones" }, h("button", { class: "btn", type: "button", onclick: function () { formSolicitud(n); } }, "Pedir una imagen"))),
+          h("div", { class: "acciones" }, h("button", { class: "btn", type: "button", onclick: function () { formSolicitud(n); } }, "Pedir una imagen"),
+            S.cargado.marcas ? h("a", { class: "btn-glass", href: "#marca-" + n.id, style: "text-decoration:none" }, "Mi marca") : null)),
       h("div", { class: "stats" },
         stat(c("aprobacion"), "por aprobar", "soon"),
         stat(c("pendiente") + c("creacion") + c("cambios"), "en proceso", "info"),
@@ -1959,6 +1977,115 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
   }
 
   /* ---------- marca ---------- */
+  /* ---------- Mi marca (kit de marca por negocio) ----------
+     Tabla `marcas` (10-mi-marca.sql). El cliente la ve y descarga sus logos; el admin la edita.
+     La rutina de borradores la lee antes de diseñar. */
+  var USOS_LOGO = [["principal", "Principal"], ["horizontal", "Horizontal"], ["blanco", "Versión blanca"], ["icono", "Ícono"], ["otro", "Otro"]];
+  var DATOS_MARCA = [["eslogan", "Eslogan"], ["whatsapp", "WhatsApp"], ["telefono", "Teléfono"], ["instagram", "Instagram"], ["facebook", "Facebook"], ["web", "Página web"], ["direccion", "Dirección"], ["horario", "Horario"]];
+  function marcaDe(id) { return S.marcas.find(function (m) { return m.id === id; }) || { id: id, logos: [], colores: [], tipografias: "", datos: {}, notas: "" }; }
+  function guardarMarcaNegocio(id, cambio) {
+    var fila = Object.assign({ id: id, actualizado: new Date().toISOString() }, cambio);
+    return sb.from("marcas").upsert(fila).then(function (r) {
+      if (r.error) { aviso(errMsg(errSb(r.error))); throw r.error; }
+      if (S.db) S.db.recargarTodo();
+    });
+  }
+  function hexValido(x) { return /^#[0-9a-f]{6}$/i.test(String(x || "").trim()); }
+  function vistaMarcaNegocio(n) {
+    var admin = adminActivo(), m = marcaDe(n.id), d = obj(m.datos);
+    var root = h("div", { class: "seccion", style: "gap:24px" });
+    add(root, h("section", { class: "hero glass con-color", vars: { "--c": colorVar(n) } },
+      h("div", { class: "hero-cab" },
+        h("div", { class: "seccion", style: "gap:8px" },
+          h("a", { class: "kicker", href: "#negocio-" + n.id, style: "text-decoration:none" }, "← " + n.nombre),
+          h("h1", { class: "h1" }, "Mi ", h("span", { class: "iri" }, "marca")),
+          h("p", { class: "lead" }, admin ? "Logos, colores y datos que se usan en cada diseño. El cliente ve esta pantalla y puede descargar sus logos." : "Tus logos, colores y datos de contacto, siempre a la mano. Descarga lo que necesites.")),
+        admin ? h("div", { class: "acciones" }, h("button", { class: "btn", type: "button", onclick: function () { formMarcaNegocio(n); } }, "Editar marca")) : null)));
+
+    /* Logos */
+    var logos = Array.isArray(m.logos) ? m.logos : [];
+    var gal = h("div", { class: "galeria" });
+    logos.forEach(function (l) {
+      var uso = (USOS_LOGO.find(function (u) { return u[0] === l.uso; }) || ["", "Logo"])[1];
+      add(gal, h("div", { class: "opcion" + (l.uso === "blanco" ? " sobre-oscuro" : "") }, archivoThumb(l, n, "logo-thumb"),
+        h("span", { class: "opcion-pie" }, uso,
+          h("span", { class: "acciones", style: "gap:14px" },
+            h("a", { class: "txt", href: blobUrl(l.id), target: "_blank", rel: "noopener" }, "Descargar"),
+            admin ? h("button", { class: "txt" + (S.confirma === "lg" + l.id ? " confirmar" : ""), type: "button", onclick: function () {
+              confirmar("lg" + l.id, function () {
+                guardarMarcaNegocio(n.id, { logos: logos.filter(function (x) { return x.id !== l.id; }) }).then(function () { if (S.assets) S.assets.delete(l.id).catch(function () {}); });
+              });
+            } }, S.confirma === "lg" + l.id ? "¿Quitar?" : "Quitar") : null))));
+    });
+    var subirLogo = null;
+    if (admin) {
+      var usoSel = h("select", { id: "mm-uso-" + n.id, style: "width:auto", "aria-label": "Tipo de logo" }, USOS_LOGO.map(function (u) { return h("option", { value: u[0] }, u[1]); }));
+      subirLogo = h("div", { class: "acciones" }, usoSel,
+        h("button", { class: "btn-glass", type: "button", disabled: !!S.subiendo["lg" + n.id], onclick: function () {
+          var uso = usoSel.value;
+          elegirArchivo({ key: "lg" + n.id, carpeta: n.id, listo: function (res) {
+            var nuevos = res.map(function (r) { return { id: r.id, tipo: r.tipo, nombre: r.nombre, uso: uso }; });
+            return guardarMarcaNegocio(n.id, { logos: logos.concat(nuevos) }).then(function () { aviso("Logo agregado."); });
+          } }, true, "image/png,image/svg+xml,image/webp,image/jpeg,application/pdf");
+        } }, S.subiendo["lg" + n.id] ? "Subiendo…" : "+ Subir logo"));
+    }
+    add(root, h("section", { class: "seccion" },
+      h("div", { class: "seccion-cab" }, h("h2", { class: "h2" }, "Logos", h("span", { class: "n" }, String(logos.length || ""))), subirLogo),
+      logos.length ? gal : vacio("Sin logos todavía", admin ? "Sube el logo principal y sus versiones (horizontal, blanca, ícono) en PNG o SVG." : "Luxora subirá aquí tus logos.")));
+
+    /* Colores */
+    var cols = (Array.isArray(m.colores) ? m.colores : []).filter(function (c) { return hexValido(c.hex); });
+    var sw = h("div", { class: "colores" });
+    cols.forEach(function (c) {
+      add(sw, h("button", { class: "color-chip", type: "button", title: "Copiar " + c.hex, onclick: function () { copiar(c.hex.toUpperCase(), "Copiado " + c.hex.toUpperCase()); } },
+        h("span", { class: "color-muestra", vars: { "--m": c.hex } }),
+        h("span", { class: "color-txt" }, h("b", null, c.nombre || "Color"), h("span", null, c.hex.toUpperCase()))));
+    });
+    add(root, h("section", { class: "seccion" }, h("h2", { class: "h2" }, "Colores"), cols.length ? sw : vacio("Sin colores", admin ? "Agrégalos en Editar marca." : "Luxora agregará tus colores.")));
+
+    /* Datos y tipografías */
+    var lista = DATOS_MARCA.filter(function (x) { return (d[x[0]] || "").trim(); }).map(function (x) { return [x[1], d[x[0]]]; });
+    if ((m.tipografias || "").trim()) lista.push(["Tipografías", m.tipografias]);
+    var dl = h("dl", { class: "datos" });
+    lista.forEach(function (x) { add(dl, [h("dt", null, x[0]), h("dd", null, x[1], " ", h("button", { class: "txt", type: "button", onclick: function () { copiar(x[1], "Copiado."); } }, "Copiar"))]); });
+    add(root, h("section", { class: "seccion" }, h("h2", { class: "h2" }, "Datos de contacto"), lista.length ? h("div", { class: "glass", style: "padding:20px;border-radius:24px" }, dl) : vacio("Sin datos", admin ? "Agrégalos en Editar marca." : "Pídele a Luxora que los agregue.")));
+
+    if (admin && (m.notas || "").trim()) add(root, h("section", { class: "seccion" }, h("h2", { class: "h2" }, "Notas para diseñar"), h("p", { class: "nota", style: "white-space:pre-wrap" }, m.notas)));
+    return root;
+  }
+  function formMarcaNegocio(n) {
+    var m = marcaDe(n.id), d = obj(m.datos);
+    abrirHoja(function () {
+      var col = h("textarea", { id: "fm-colores", maxlength: "600", placeholder: "Uno por renglón: nombre y código. Ej.\nAzul principal #1B3A9E\nAmarillo #FFC400" });
+      col.value = (Array.isArray(m.colores) ? m.colores : []).map(function (c) { return (c.nombre || "") + " " + (c.hex || ""); }).join("\n");
+      var tip = h("input", { id: "fm-tipos", type: "text", maxlength: "200", placeholder: "Ej. Títulos: Montserrat Bold · Texto: Open Sans", value: m.tipografias || "" });
+      var ins = {};
+      var campos = DATOS_MARCA.map(function (x) {
+        ins[x[0]] = h("input", { id: "fm-" + x[0], type: "text", maxlength: "200", value: d[x[0]] || "" });
+        return campo(x[1], ins[x[0]]);
+      });
+      var no = h("textarea", { id: "fm-notas", maxlength: "1500", placeholder: "Qué sí y qué no en sus diseños. Ej. El logo siempre sobre fondo claro; no usar fotos de stock genéricas. El cliente no ve estas notas." });
+      no.value = m.notas || "";
+      var btn = h("button", { class: "btn", type: "submit" }, "Guardar marca");
+      var form = h("form", { class: "form", onsubmit: function (e) {
+        e.preventDefault();
+        var colores = [], malos = [];
+        col.value.split("\n").forEach(function (lin) {
+          lin = lin.trim(); if (!lin) return;
+          var mm = /^(.*?)[\s:-]*(#[0-9a-fA-F]{6})\s*$/.exec(lin);
+          if (mm) colores.push({ nombre: mm[1].trim() || "Color", hex: mm[2].toUpperCase() }); else malos.push(lin);
+        });
+        if (malos.length) { aviso("Revisa los colores: cada renglón termina con un código como #1B3A9E."); return; }
+        var datos = {};
+        DATOS_MARCA.forEach(function (x) { var v = ins[x[0]].value.trim(); if (v) datos[x[0]] = v; });
+        btn.disabled = true;
+        guardarMarcaNegocio(n.id, { colores: colores, tipografias: tip.value.trim(), datos: datos, notas: no.value.trim() })
+          .then(function () { cerrarHoja(); aviso("Marca guardada."); }).catch(function () { btn.disabled = false; });
+      } }, campo("Colores", col, true), campo("Tipografías", tip, true), campos, campo("Notas para diseñar (solo admin)", no, true), h("div", { class: "acciones full" }, btn));
+      return h("div", { class: "seccion" }, cabHoja("Editar marca", h("p", { class: "kicker" }, n.nombre)), form);
+    }, true);
+  }
+
   function vistaMarca() {
     var root = h("div", { class: "seccion", style: "gap:24px" });
     var esl = h("input", { id: "m-eslogan", type: "text", maxlength: "120", placeholder: "Ej. Marketing que se ve y se vende", value: S.marca.eslogan || "" });
@@ -2192,7 +2319,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
     if (S.db && S.db.cerrar) S.db.cerrar();
     clearInterval(pollT); clearTimeout(listoT);
     S.db = null; S.assets = null; S.isOwner = false; S.isAdmin = false; S.escribe = null; S.verComo = null;
-    S.negocios = []; S.imagenes = []; S.comentarios = []; S.solicitudes = []; S.reportes = []; S.accesos = []; S.tareas = []; S.v5 = false;
+    S.negocios = []; S.imagenes = []; S.comentarios = []; S.solicitudes = []; S.reportes = []; S.accesos = []; S.tareas = []; S.marcas = []; S.v5 = false;
     S.cargado = {}; S.listoTodo = false;
   }
   function cerrarSesion() {
@@ -2222,6 +2349,8 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       db.doc("ajustes/marca").onSnapshot(function (sn) { S.marca = sn.exists ? sn.data() : {}; refrescar(); });
       if (S.isOwner) db.collection("privado/raul/tareas").onSnapshot(function (sn) { S.tareas = docs(sn); refrescar(); }, function () {});
       if (S.isAdmin) S.assets = crearAssets();
+      // Mi marca (10-mi-marca.sql): solo si la tabla existe.
+      sb.from("marcas").select("id").limit(1).then(function (r) { if (S.db === db && !r.error) sub("marcas", "marcas"); });
       // Campos extra de las solicitudes (5-campos-extra.sql). Si aún no se corre ese SQL, el portal funciona como antes.
       sb.from("solicitudes").select("detalles,fecha_borrador").limit(1).then(function (r) {
         if (S.db !== db || r.error) return;
