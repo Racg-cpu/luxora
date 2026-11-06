@@ -788,6 +788,17 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
     var w = String(t || "?").replace(/[^\p{L}\p{N} ]/gu, " ").trim().split(/\s+/);
     return ((w[0] || "?").charAt(0) + (w[1] ? w[1].charAt(0) : "")).toUpperCase();
   }
+  // Cantidades como las escribe la gente: 74500, 74,500 o 74.500 (miles) → 74500.
+  function numEntero(v) { var d = String(v == null ? "" : v).replace(/[^0-9]/g, ""); return d ? parseInt(d, 10) : null; }
+  // Dinero: 1,250.50 · 1.250,50 · 1250 · 1,250 → el separador seguido de 1 o 2 cifras al final es el decimal; los demás son de miles.
+  function numDinero(v) {
+    var t = String(v == null ? "" : v).replace(/[^0-9.,]/g, "");
+    if (!t) return null;
+    var m = /[.,](\d{1,2})$/.exec(t);
+    var entero = (m ? t.slice(0, m.index) : t).replace(/[.,]/g, "");
+    var n = parseFloat((entero || "0") + (m ? "." + m[1] : ""));
+    return isFinite(n) ? n : null;
+  }
   function num(v) { var n = parseFloat(String(v).replace(/[^0-9.\-]/g, "")); return isFinite(n) ? n : null; }
   var toastT = null;
   function aviso(t) {
@@ -1752,9 +1763,9 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       var ng = selectNegocio("fr-negocio", negId);
       var pl = h("select", { id: "fr-plat" }, PLATAFORMAS.map(function (p) { return h("option", { value: p }, p); }));
       var de = h("input", { id: "fr-desde", type: "date" }), ha = h("input", { id: "fr-hasta", type: "date" });
-      var ga = h("input", { id: "fr-gasto", type: "number", min: "0", step: "0.01", inputmode: "decimal", placeholder: "Ej. 450" });
-      var al = h("input", { id: "fr-alcance", type: "number", min: "0", step: "1", inputmode: "numeric", placeholder: "Ej. 12000" });
-      var re = h("input", { id: "fr-res", type: "number", min: "0", step: "1", inputmode: "numeric", placeholder: "Ej. 38" });
+      var ga = h("input", { id: "fr-gasto", type: "text", inputmode: "decimal", autocomplete: "off", placeholder: "Ej. 450 o 1,250.50" });
+      var al = h("input", { id: "fr-alcance", type: "text", inputmode: "numeric", autocomplete: "off", placeholder: "Ej. 12,000" });
+      var re = h("input", { id: "fr-res", type: "text", inputmode: "numeric", autocomplete: "off", placeholder: "Ej. 38" });
       var tr = h("select", { id: "fr-tipo" }, RESULTADOS.map(function (p) { return h("option", { value: p }, cap(p)); }));
       var no = h("textarea", { id: "fr-notas", maxlength: "800", placeholder: "Qué funcionó, qué cambiarías, recomendación para la próxima campaña." });
       var estadoArch = h("span", { class: "nota" }, archivo ? archivo.nombre : "Sin archivo (opcional)");
@@ -1768,7 +1779,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
         btn.disabled = true;
         crear("reportes", {
           titulo: t.value.trim(), negocioId: ng.value, plataforma: pl.value, desde: de.value || "", hasta: ha.value || "",
-          gasto: num(ga.value), alcance: num(al.value), resultados: num(re.value), tipoResultado: tr.value, notas: no.value.trim(),
+          gasto: numDinero(ga.value), alcance: numEntero(al.value), resultados: numEntero(re.value), tipoResultado: tr.value, notas: no.value.trim(),
           archivoId: archivo ? archivo.id : null, archivoTipo: archivo ? archivo.tipo : null, archivoNombre: archivo ? archivo.nombre : null, creado: Date.now()
         }).then(function () { cerrarHoja(); aviso("Reporte guardado. Tu cliente ya lo puede ver."); }).catch(function () { btn.disabled = false; });
       } }, campo("Título", t, true), campo("Negocio", ng), campo("Plataforma", pl), campo("Desde", de), campo("Hasta", ha),
