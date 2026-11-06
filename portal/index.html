@@ -1430,6 +1430,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       r.notas ? h("p", { class: "nota", style: "white-space:pre-wrap" }, r.notas) : null,
       h("div", { class: "acciones" },
         r.archivoId ? h("a", { class: "btn-glass", href: blobUrl(r.archivoId), target: "_blank", rel: "noopener" }, "Abrir " + etiquetaTipo(r.archivoTipo)) : null,
+        adminActivo() ? h("button", { class: "btn-glass", type: "button", onclick: function () { formReporte(r.negocioId, r); } }, "Editar") : null,
         adminActivo() ? h("button", { class: "btn-glass peligro" + (S.confirma === key ? " confirmar" : ""), type: "button", onclick: function () {
           confirmar(key, function () { borrar("reportes", r.id).then(function () { if (r.archivoId && S.assets) S.assets.delete(r.archivoId).catch(function () {}); }); });
         } }, S.confirma === key ? "¿Borrar reporte?" : "Borrar") : null));
@@ -1756,8 +1757,10 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       return h("div", { class: "seccion" }, cabHoja(n ? "Editar negocio" : "Nuevo negocio"), form);
     });
   }
-  function formReporte(negId) {
-    var archivo = null;
+  function formReporte(negId, rep) {
+    // rep: reporte existente para editarlo (solo admin); sin rep, crea uno nuevo.
+    var archivo = rep && rep.archivoId ? { id: rep.archivoId, tipo: rep.archivoTipo, nombre: rep.archivoNombre || "Archivo adjunto" } : null;
+    var archivoOriginal = archivo ? archivo.id : null;
     abrirHoja(function () {
       var t = h("input", { id: "fr-titulo", type: "text", maxlength: "120", required: true, placeholder: "Ej. Campaña de regreso a clases" });
       var ng = selectNegocio("fr-negocio", negId);
@@ -1768,24 +1771,34 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       var re = h("input", { id: "fr-res", type: "text", inputmode: "numeric", autocomplete: "off", placeholder: "Ej. 38" });
       var tr = h("select", { id: "fr-tipo" }, RESULTADOS.map(function (p) { return h("option", { value: p }, cap(p)); }));
       var no = h("textarea", { id: "fr-notas", maxlength: "800", placeholder: "Qué funcionó, qué cambiarías, recomendación para la próxima campaña." });
+      if (rep) {
+        t.value = rep.titulo || ""; pl.value = rep.plataforma || PLATAFORMAS[0]; de.value = rep.desde || ""; ha.value = rep.hasta || "";
+        ga.value = rep.gasto != null ? String(rep.gasto) : ""; al.value = rep.alcance != null ? String(rep.alcance) : "";
+        re.value = rep.resultados != null ? String(rep.resultados) : ""; tr.value = rep.tipoResultado || RESULTADOS[0]; no.value = rep.notas || "";
+      }
       var estadoArch = h("span", { class: "nota" }, archivo ? archivo.nombre : "Sin archivo (opcional)");
       var btnArch = h("button", { class: "btn-glass", type: "button", disabled: !!S.subiendo.rep, onclick: function () {
         elegirArchivo({ key: "rep", carpeta: ng.value, listo: function (res) { archivo = res[0]; estadoArch.textContent = archivo.nombre; } }, false, "application/pdf,image/png,image/jpeg,image/webp");
       } }, S.subiendo.rep ? "Subiendo…" : "Adjuntar PDF o captura");
-      var btn = h("button", { class: "btn", type: "submit" }, "Guardar reporte");
+      var btn = h("button", { class: "btn", type: "submit" }, rep ? "Guardar cambios" : "Guardar reporte");
       var form = h("form", { class: "form", onsubmit: function (e) {
         e.preventDefault();
         if (!t.value.trim()) return;
         btn.disabled = true;
-        crear("reportes", {
+        var datos = {
           titulo: t.value.trim(), negocioId: ng.value, plataforma: pl.value, desde: de.value || "", hasta: ha.value || "",
           gasto: numDinero(ga.value), alcance: numEntero(al.value), resultados: numEntero(re.value), tipoResultado: tr.value, notas: no.value.trim(),
-          archivoId: archivo ? archivo.id : null, archivoTipo: archivo ? archivo.tipo : null, archivoNombre: archivo ? archivo.nombre : null, creado: Date.now()
-        }).then(function () { cerrarHoja(); aviso("Reporte guardado. Tu cliente ya lo puede ver."); }).catch(function () { btn.disabled = false; });
+          archivoId: archivo ? archivo.id : null, archivoTipo: archivo ? archivo.tipo : null, archivoNombre: archivo ? archivo.nombre : null
+        };
+        var p = rep ? upd("reportes", rep.id, datos) : crear("reportes", Object.assign(datos, { creado: Date.now() }));
+        p.then(function () {
+          if (rep && archivoOriginal && (!archivo || archivo.id !== archivoOriginal) && S.assets) S.assets.delete(archivoOriginal).catch(function () {});
+          cerrarHoja(); aviso(rep ? "Reporte actualizado." : "Reporte guardado. Tu cliente ya lo puede ver.");
+        }).catch(function () { btn.disabled = false; });
       } }, campo("Título", t, true), campo("Negocio", ng), campo("Plataforma", pl), campo("Desde", de), campo("Hasta", ha),
         campo("Inversión (MXN)", ga), campo("Personas alcanzadas", al), campo("Resultados", re), campo("Tipo de resultado", tr),
         campo("Conclusiones", no, true), h("div", { class: "acciones full" }, btnArch, estadoArch), h("div", { class: "acciones full" }, btn));
-      return h("div", { class: "seccion" }, cabHoja("Subir reporte de anuncios"), h("p", { class: "nota" }, "Copia los números del Administrador de anuncios. El costo por resultado se calcula solo."), form);
+      return h("div", { class: "seccion" }, cabHoja(rep ? "Editar reporte" : "Subir reporte de anuncios"), h("p", { class: "nota" }, "Copia los números del Administrador de anuncios. El costo por resultado se calcula solo."), form);
     }, true);
   }
   /* ---------- detalles opcionales de una imagen ---------- */
