@@ -525,7 +525,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
   var S = {
     db: null, assets: null, listo: false, sinDatos: false,
     isOwner: false, isAdmin: false, guest: false, escribe: null,
-    negocios: [], imagenes: [], comentarios: [], solicitudes: [], reportes: [], accesos: [], tareas: [], marcas: [], marca: {}, v5: false,
+    negocios: [], imagenes: [], comentarios: [], solicitudes: [], reportes: [], accesos: [], tareas: [], marcas: [], anuncios: [], marca: {}, v5: false,
     cargado: {}, sesion: null, authUid: null, authEmail: "", modoLogin: "entrar", errorCarga: "", verComo: null, filtro: {}, filtroMesa: "todos",
     subiendo: {}, confirma: null, confirmaT: null, fallos: 0, bloqueo: 0, opcionElegida: {}
   };
@@ -579,6 +579,11 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
     comentarios: { tabla: "comentarios", campos: [["imagenId", "imagen_id"], ["autor", "autor"], ["tipo", "tipo"], ["texto", "texto"], ["opcion", "opcion"], ["ts", "creado", aIso, aMs]] },
     solicitudes: { tabla: "solicitudes", campos: [["negocioId", "negocio_id"], ["titulo", "titulo"], ["detalle", "detalle"], ["fecha", "fecha", fDb, fApp], ["formato", "formato"], ["estado", "estado"], ["ts", "creado", aIso, aMs],
       ["detalles", "detalles", obj, obj], ["fechaBorrador", "fecha_borrador", fDb, fApp]] },
+    anuncios: { tabla: "anuncios", campos: [
+      ["negocioId", "negocio_id"], ["imagenId", "imagen_id"], ["objetivo", "objetivo"], ["presupuestoDiario", "presupuesto_diario"],
+      ["desde", "desde", fDb, fApp], ["hasta", "hasta", fDb, fApp], ["plataformas", "plataformas", function (v) { return v || []; }, function (v) { return v || []; }],
+      ["zona", "zona"], ["edadMin", "edad_min"], ["edadMax", "edad_max"], ["pago", "pago"], ["notas", "notas"], ["estado", "estado"],
+      ["notaLuxora", "nota_luxora"], ["creado", "creado", aIso, aMs], ["actualizado", "actualizado", aIso, aMs]] },
     marcas: { tabla: "marcas", campos: [
       ["logos", "logos", function (v) { return v || []; }, function (v) { return v || []; }], ["colores", "colores", function (v) { return v || []; }, function (v) { return v || []; }],
       ["tipografias", "tipografias"], ["datos", "datos", obj, obj], ["notas", "notas"], ["actualizado", "actualizado", aIso, aMs]] },
@@ -1207,6 +1212,28 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
     if (!negs.length && !adminActivo()) add(grid, vacio("Aún no hay negocios en tu acceso", "Pídele a tu contacto de Luxora que te los asigne."));
     add(root, h("section", { class: "seccion" }, h("h2", { class: "h2" }, "Negocios", h("span", { class: "n" }, String(negs.length))), grid));
 
+    if (adminActivo()) {
+      var capPend = captionsPendientes(negs);
+      if (capPend.length) {
+        var fc = h("div", { class: "filas" });
+        negs.forEach(function (n) {
+          var deN = capPend.filter(function (i) { return i.negocioId === n.id; });
+          if (!deN.length) return;
+          add(fc, h("div", { class: "fila" }, h("span", { class: "dot", vars: { "--c": colorVar(n) } }),
+            h("div", { class: "fila-mid" }, h("span", { class: "fila-titulo" }, n.nombre), h("span", { class: "fila-sub" }, deN.map(function (i) { return h("span", null, i.titulo); }))),
+            h("button", { class: "btn-glass", type: "button", onclick: function () { copiar(recordatorioCaption(deN), "Recordatorio copiado. Pégalo en WhatsApp."); } }, "Copiar recordatorio")));
+        });
+        add(root, h("section", { class: "seccion" }, h("h2", { class: "h2" }, "Descripciones por aprobar", h("span", { class: "n" }, String(capPend.length))),
+          h("p", { class: "nota" }, "El cliente aún no aprueba estas descripciones. Copia el recordatorio y mándaselo por WhatsApp."), fc));
+      }
+      var anNuevos = S.anuncios.filter(function (a) { return a.estado === "nueva" && negs.some(function (n) { return n.id === a.negocioId; }); });
+      if (anNuevos.length) {
+        var fa = h("div", { class: "seccion", style: "gap:12px" });
+        anNuevos.forEach(function (a) { add(fa, h("div", { class: "seccion", style: "gap:6px" }, marcadorNeg(negPorId(a.negocioId)), filaAnuncio(a, true))); });
+        add(root, h("section", { class: "seccion" }, h("h2", { class: "h2" }, "Anuncios por revisar", h("span", { class: "n" }, String(anNuevos.length))), fa));
+      }
+    }
+
     if (adminActivo() && nuevasSol.length) {
       var filas = h("div", { class: "filas" });
       nuevasSol.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); }).forEach(function (s) { add(filas, filaSolicitud(s)); });
@@ -1326,6 +1353,9 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       h("div", { class: "seccion-cab" }, h("h2", { class: "h2" }, "Solicitudes", h("span", { class: "n" }, String(sols.filter(function (s) { return s.estado === "nueva"; }).length || ""))),
         !admin ? h("button", { class: "btn-glass", type: "button", onclick: function () { formSolicitud(n); } }, "Pedir una imagen") : null),
       sols.length ? solBox : vacio("Sin solicitudes", admin ? "Lo que el cliente pida desde su portal aparece aquí." : "¿Necesitas una imagen nueva? Pídela con el botón de arriba.")));
+
+    /* Anuncios */
+    add(root, seccionAnuncios(n, admin));
 
     /* Reportes */
     add(root, seccionReportes(n));
@@ -1542,14 +1572,157 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
     add(root, conversacion(i));
     return root;
   }
+  /* ---------- Descripción: aprobación del cliente ---------- */
+  function captionFirmada(i) {
+    var c = i.caption && i.caption.texto ? i.caption : null;
+    if (!c) return null;
+    var desde = Date.parse(c.editada || c.aprobada || "") || 0;
+    var ok = comentariosDe(i.id).some(function (x) { return x.tipo === "aprobado_caption" && esDeCliente(x) && (x.ts || 0) >= desde; });
+    return { caption: c, aprobada: ok };
+  }
+  function captionsPendientes(negs) {
+    return S.imagenes.filter(function (i) {
+      var f = captionFirmada(i);
+      return f && !f.aprobada && i.estado !== "cancelada" && (!negs || negs.some(function (n) { return n.id === i.negocioId; }));
+    });
+  }
+  function recordatorioCaption(imgs) {
+    var titulos = imgs.map(function (i) { return "• " + i.titulo; }).join("\n");
+    return "Hola, ya está lista la descripción para Instagram de " + (imgs.length === 1 ? "\"" + imgs[0].titulo + "\"" : "estas publicaciones:\n" + titulos) +
+      "\n\n¿Me ayudas a revisarla y aprobarla para poder publicar? " + (APP_URL ? "Entra aquí: " + APP_URL + " " : "") + "y toca \"Aprobar descripción\" en cada imagen. Si quieres cambiar algo, ahí mismo puedes pedirlo.";
+  }
+
+  /* ---------- Anuncios: el cliente pide promocionar una publicación ---------- */
+  var OBJETIVOS = ["Mensajes por WhatsApp", "Visitas al perfil de Instagram o Facebook", "Que lo vea más gente en la zona", "Llamadas al negocio", "Otro"];
+  var E_ANUNCIO = { nueva: ["Recibido", "e-info"], activa: ["Activo", "e-ok"], terminada: ["Terminado", "e-pub"], rechazada: ["No se hizo", "e-idle"] };
+  function diasEntre(a, b) { var x = parseF(a), y = parseF(b); return x && y && y >= x ? Math.round((y - x) / 86400000) + 1 : 0; }
+  function filaAnuncio(a, admin) {
+    var img = imgPorId(a.imagenId), dias = diasEntre(a.desde, a.hasta), e = E_ANUNCIO[a.estado] || E_ANUNCIO.nueva;
+    var total = a.presupuestoDiario != null && dias ? a.presupuestoDiario * dias : null;
+    var acc = null;
+    if (admin) {
+      var b = function (estado, txt, cls) { return a.estado === estado ? null : h("button", { class: "btn-glass" + (cls ? " " + cls : ""), type: "button", onclick: function () { upd("anuncios", a.id, { estado: estado, actualizado: Date.now() }).then(function () { aviso("Anuncio: " + E_ANUNCIO[estado][0] + "."); }); } }, txt); };
+      acc = h("div", { class: "acciones" }, b("activa", "Marcar activo", "ok"), b("terminada", "Terminado"), b("rechazada", "No se hará", "peligro"),
+        h("button", { class: "btn-glass", type: "button", onclick: function () { formNotaAnuncio(a); } }, a.notaLuxora ? "Editar respuesta" : "Responder"));
+    }
+    return h("div", { class: "seccion", style: "gap:10px;padding:16px;border-radius:22px;border:1px solid var(--line);background:var(--field)" },
+      h("div", { class: "fila", style: "padding:0;border:0;background:none" },
+        img ? thumb(img, "mini") : h("div", { class: "thumb mini" }),
+        h("div", { class: "fila-mid" },
+          h("span", { class: "fila-titulo" }, img ? img.titulo : "Publicación"),
+          h("span", { class: "fila-sub" },
+            h("span", null, (a.desde ? fCorta(a.desde) : "¿?") + " – " + (a.hasta ? fCorta(a.hasta) : "¿?") + (dias ? " · " + plural(dias, "día", "días") : "")),
+            a.presupuestoDiario != null ? h("span", null, MXN.format(a.presupuestoDiario) + " al día" + (total != null ? " · total " + MXN.format(total) : "")) : null,
+            a.objetivo ? h("span", null, a.objetivo) : null)),
+        h("span", { class: "pill " + e[1] }, e[0])),
+      h("p", { class: "nota" }, [
+        (a.plataformas || []).length ? "Dónde: " + a.plataformas.join(" y ") : "",
+        a.zona ? "Zona: " + a.zona : "",
+        a.edadMin || a.edadMax ? "Edades: " + (a.edadMin || 18) + " a " + (a.edadMax || 65) : "",
+        a.pago ? "Pago: " + (a.pago === "meta" ? "su tarjeta registrada en Meta" : "le paga a Luxora") : ""
+      ].filter(Boolean).join(" · ")),
+      a.notas ? h("p", { class: "nota", style: "white-space:pre-wrap" }, "Notas del cliente: " + a.notas) : null,
+      a.notaLuxora ? h("p", { class: "nota", style: "white-space:pre-wrap;color:var(--ink)" }, "Luxora: " + a.notaLuxora) : null,
+      acc);
+  }
+  function seccionAnuncios(n, admin) {
+    if (!S.cargado.anuncios) return null;
+    var ls = S.anuncios.filter(function (a) { return a.negocioId === n.id; }).sort(function (a, b) { return (b.creado || 0) - (a.creado || 0); });
+    var box = h("div", { class: "seccion", style: "gap:12px" });
+    ls.forEach(function (a) { add(box, filaAnuncio(a, admin)); });
+    return h("section", { class: "seccion" },
+      h("div", { class: "seccion-cab" }, h("h2", { class: "h2" }, "Anuncios", h("span", { class: "n" }, String(ls.length || ""))),
+        !admin ? h("button", { class: "btn-glass", type: "button", onclick: function () { formAnuncio(n); } }, "Pedir un anuncio") : null),
+      ls.length ? box : vacio("Sin anuncios", admin ? "Lo que el cliente pida promocionar aparece aquí." : "¿Quieres que más gente vea una de tus publicaciones? Pide un anuncio."));
+  }
+  function formNotaAnuncio(a) {
+    abrirHoja(function () {
+      var t = h("textarea", { id: "fa-nota", maxlength: "800", placeholder: "Ej. Listo, arranca mañana. El cobro sale de tu cuenta de Meta." });
+      t.value = a.notaLuxora || "";
+      var btn = h("button", { class: "btn", type: "submit" }, "Guardar respuesta");
+      return h("div", { class: "seccion" }, cabHoja("Respuesta al cliente"),
+        h("form", { class: "form", onsubmit: function (e) { e.preventDefault(); btn.disabled = true;
+          upd("anuncios", a.id, { notaLuxora: t.value.trim(), actualizado: Date.now() }).then(function () { cerrarHoja(); aviso("Respuesta guardada. El cliente la ve en su portal."); }).catch(function () { btn.disabled = false; });
+        } }, campo("Lo que verá el cliente", t, true), h("div", { class: "acciones full" }, btn)));
+    }, true);
+  }
+  function formAnuncio(n) {
+    var publicadas = imgsDe(n.id).filter(function (i) { return i.estado === "publicada"; }).sort(function (a, b) { return (b.publicadaTs || 0) - (a.publicadaTs || 0); });
+    abrirHoja(function () {
+      if (!publicadas.length) return h("div", { class: "seccion" }, cabHoja("Pedir un anuncio", h("p", { class: "kicker" }, n.nombre)),
+        vacio("Todavía no hay publicaciones publicadas", "Los anuncios se hacen con una publicación que ya esté en tus redes. Cuando se publique alguna, podrás pedirlo aquí."));
+      var elegida = S.anuncioImg && publicadas.some(function (i) { return i.id === S.anuncioImg; }) ? S.anuncioImg : null;
+      var gal = h("div", { class: "galeria", role: "radiogroup", "aria-label": "Publicación" });
+      publicadas.forEach(function (i) {
+        add(gal, h("button", { class: "opcion", type: "button", role: "radio", "aria-checked": elegida === i.id ? "true" : "false", "aria-pressed": elegida === i.id ? "true" : "false",
+          onclick: function () { S.anuncioImg = i.id; pintarHoja(); } }, thumb(i), h("span", { class: "opcion-pie" }, i.titulo)));
+      });
+      var ob = h("select", { id: "fa-obj" }, OBJETIVOS.map(function (x) { return h("option", { value: x }, x); }));
+      var pd = h("input", { id: "fa-diario", type: "text", inputmode: "decimal", autocomplete: "off", placeholder: "Ej. 50" });
+      var hoyIso = iso(hoy());
+      var de = h("input", { id: "fa-desde", type: "date", min: hoyIso }), ha = h("input", { id: "fa-hasta", type: "date", min: hoyIso });
+      var total = h("p", { class: "nota full", "aria-live": "polite" }, "Escribe el presupuesto diario y las fechas para ver el total.");
+      var calc = function () {
+        var d = diasEntre(de.value, ha.value), m = numDinero(pd.value);
+        total.textContent = d && m ? "Total aproximado: " + MXN.format(m * d) + " (" + plural(d, "día", "días") + " × " + MXN.format(m) + "). Meta puede gastar un poco más o menos cada día." :
+          (de.value && ha.value && !d ? "La fecha final debe ser igual o después de la inicial." : "Escribe el presupuesto diario y las fechas para ver el total.");
+      };
+      [pd, de, ha].forEach(function (x) { x.addEventListener("input", calc); x.addEventListener("change", calc); });
+      setTimeout(calc, 0);
+      var pls = ["Facebook", "Instagram"].map(function (x, k) { return h("label", { class: "check" }, h("input", { id: "fa-pl-" + k, type: "checkbox", value: x, checked: true }), x); });
+      var zona = h("input", { id: "fa-zona", type: "text", maxlength: "150", placeholder: "Ej. Mi ciudad y 10 km alrededor" });
+      var emin = h("input", { id: "fa-emin", type: "text", inputmode: "numeric", maxlength: "2", placeholder: "18" });
+      var emax = h("input", { id: "fa-emax", type: "text", inputmode: "numeric", maxlength: "2", placeholder: "65" });
+      var pago = h("div", { class: "checks", role: "radiogroup", "aria-label": "Cómo se paga" },
+        h("label", { class: "check" }, h("input", { id: "fa-pago-meta", type: "radio", name: "fa-pago", value: "meta" }), "Con mi tarjeta registrada en Meta"),
+        h("label", { class: "check" }, h("input", { id: "fa-pago-lux", type: "radio", name: "fa-pago", value: "luxora" }), "Le pago a Luxora"));
+      var no = h("textarea", { id: "fa-notas", maxlength: "600", placeholder: "Algo más que debamos saber. Ej. Que diga que hay estacionamiento" });
+      var btn = h("button", { class: "btn", type: "submit" }, "Enviar solicitud de anuncio");
+      var form = h("form", { class: "form", onsubmit: function (e) {
+        e.preventDefault();
+        var img = S.anuncioImg && publicadas.some(function (i) { return i.id === S.anuncioImg; }) ? S.anuncioImg : null;
+        var m = numDinero(pd.value), d = diasEntre(de.value, ha.value);
+        var pg = (form.querySelector("input[name=fa-pago]:checked") || {}).value || "";
+        if (!img) { aviso("Elige la publicación que quieres promocionar."); return; }
+        if (!m || m <= 0) { aviso("Escribe cuánto quieres invertir al día."); return; }
+        if (!d) { aviso("Revisa las fechas: la final debe ser igual o después de la inicial."); return; }
+        if (!pg) { aviso("Elige cómo se va a pagar."); return; }
+        var eMin = numEntero(emin.value), eMax = numEntero(emax.value);
+        if (eMin && eMax && eMin > eMax) { aviso("La edad mínima no puede ser mayor que la máxima."); return; }
+        btn.disabled = true;
+        crear("anuncios", { negocioId: n.id, imagenId: img, objetivo: ob.value, presupuestoDiario: m, desde: de.value, hasta: ha.value,
+          plataformas: pls.map(function (l) { return l.querySelector("input"); }).filter(function (x) { return x.checked; }).map(function (x) { return x.value; }),
+          zona: zona.value.trim(), edadMin: eMin, edadMax: eMax, pago: pg, notas: no.value.trim(), estado: "nueva", creado: Date.now(), actualizado: Date.now() })
+          .then(function () { S.anuncioImg = null; cerrarHoja(); aviso("Listo. Luxora revisará tu anuncio y te avisará cuando arranque."); })
+          .catch(function () { btn.disabled = false; });
+      } },
+        h("div", { class: "campo full" }, h("span", null, "1. ¿Qué publicación quieres promocionar?"), gal),
+        campo("2. ¿Qué buscas?", ob, true),
+        campo("3. Presupuesto por día (MXN)", pd), h("span", null),
+        campo("Desde", de), campo("Hasta", ha), total,
+        h("div", { class: "campo full" }, h("span", null, "4. ¿Dónde?"), h("div", { class: "checks" }, pls)),
+        campo("Zona", zona, true), campo("Edad mínima", emin), campo("Edad máxima", emax),
+        h("div", { class: "campo full" }, h("span", null, "5. ¿Cómo se paga?"), pago,
+          h("p", { class: "nota" }, "Por seguridad, Luxora no guarda tarjetas. Si pagas con tu cuenta de Meta, el cobro sale directo de ahí.")),
+        campo("Notas (opcional)", no, true),
+        h("div", { class: "acciones full" }, btn));
+      return h("div", { class: "seccion" }, cabHoja("Pedir un anuncio", h("p", { class: "kicker" }, n.nombre)), form);
+    }, true);
+  }
+
   function bloqueCaption(i, admin) {
     var c = i.caption && i.caption.texto ? i.caption : null;
     if (!c) return null;
-    var abierto = S.capEdit === i.id;
+    var abierto = S.capEdit === i.id, firma = captionFirmada(i);
     var caja = h("div", { class: "seccion", style: "gap:10px" },
-      h("span", { class: "kicker" }, "Descripción para Instagram"),
+      h("div", { class: "acciones", style: "justify-content:space-between" }, h("span", { class: "kicker" }, "Descripción para Instagram"),
+        firma.aprobada ? h("span", { class: "pill e-ok" }, admin ? "Aprobada por el cliente" : "Aprobaste esta descripción") : h("span", { class: "pill e-soon" }, admin ? "Esperando al cliente" : "Falta tu aprobación")),
       h("div", { class: "caption-txt" }, c.texto),
       h("div", { class: "acciones" },
+        !admin && !firma.aprobada ? h("button", { class: "btn", type: "button", onclick: function (e) {
+          e.currentTarget.disabled = true; comentar(i.id, "aprobado_caption", "").then(function () { aviso("¡Gracias! Aprobaste la descripción."); });
+        } }, "Aprobar descripción") : null,
+        admin && !firma.aprobada ? h("button", { class: "btn-glass", type: "button", onclick: function () { copiar(recordatorioCaption([i]), "Recordatorio copiado. Pégalo en WhatsApp."); } }, "Copiar recordatorio para WhatsApp") : null,
         h("button", { class: "btn-glass", type: "button", onclick: function () { copiar(c.texto, "Descripción copiada. Pégala en Instagram."); } }, "Copiar descripción"),
         c.corto ? h("button", { class: "btn-glass", type: "button", onclick: function () { copiar(c.corto, "Versión corta copiada."); } }, "Copiar versión corta") : null,
         h("button", { class: "btn-glass", type: "button", "aria-expanded": abierto ? "true" : "false", onclick: function () { S.capEdit = abierto ? null : i.id; pintarHoja(); } },
@@ -1717,7 +1890,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       var hilo = h("div", { class: "hilo" });
       cs.forEach(function (c) {
         var cli = esDeCliente(c), mio = admin ? !cli : cli;
-        var cuerpo = c.tipo === "aprobado" ? "Aprobó la imagen" + (typeof c.opcion === "number" ? " (opción " + (c.opcion + 1) + ")" : "") + "." : c.tipo === "cambios" ? "Pidió cambios" + (typeof c.opcion === "number" ? " en la opción " + (c.opcion + 1) : "") + ": " + c.texto : c.tipo === "cambios_caption" ? "Pidió cambios en la descripción: " + c.texto : c.texto;
+        var cuerpo = c.tipo === "aprobado" ? "Aprobó la imagen" + (typeof c.opcion === "number" ? " (opción " + (c.opcion + 1) + ")" : "") + "." : c.tipo === "cambios" ? "Pidió cambios" + (typeof c.opcion === "number" ? " en la opción " + (c.opcion + 1) : "") + ": " + c.texto : c.tipo === "cambios_caption" ? "Pidió cambios en la descripción: " + c.texto : c.tipo === "aprobado_caption" ? "Aprobó la descripción." : c.texto;
         add(hilo, h("div", { class: "msg" + (mio ? " mio" : "") }, h("div", { class: "msg-cab" }, h("span", null, mio ? "Tú" : (cli ? "Cliente" : "Luxora")), h("span", null, fTs(c.ts))), h("div", { class: "msg-txt" }, cuerpo)));
       });
       add(box, hilo);
@@ -2354,7 +2527,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       if (x.c) {
         var i = imgPorId(x.c.imagenId);
         add(actBox, h("button", { class: "fila", type: "button", onclick: function () { abrirImagen(i.id); } }, thumb(i, "mini"),
-          h("div", { class: "fila-mid" }, h("span", { class: "fila-titulo" }, x.c.tipo === "aprobado" ? "Aprobó " + i.titulo : x.c.tipo === "cambios" ? "Pidió cambios en " + i.titulo : x.c.tipo === "cambios_caption" ? "Pidió cambios en la descripción de " + i.titulo : "Comentó en " + i.titulo), h("span", { class: "fila-sub" }, marcadorNeg(negPorId(i.negocioId)), fTs(x.c.ts))),
+          h("div", { class: "fila-mid" }, h("span", { class: "fila-titulo" }, x.c.tipo === "aprobado" ? "Aprobó " + i.titulo : x.c.tipo === "cambios" ? "Pidió cambios en " + i.titulo : x.c.tipo === "cambios_caption" ? "Pidió cambios en la descripción de " + i.titulo : x.c.tipo === "aprobado_caption" ? "Aprobó la descripción de " + i.titulo : "Comentó en " + i.titulo), h("span", { class: "fila-sub" }, marcadorNeg(negPorId(i.negocioId)), fTs(x.c.ts))),
           h("span", { class: "pill " + (x.c.tipo === "aprobado" ? "e-ok" : x.c.tipo === "cambios" ? "e-late" : "e-idle") }, x.c.tipo === "aprobado" ? "Aprobó" : x.c.tipo === "cambios" ? "Cambios" : "Nota")));
       } else {
         add(actBox, h("a", { class: "fila", href: "#negocio-" + x.s.negocioId, style: "text-decoration:none" }, fechaNum(x.s.fecha, true),
@@ -2377,7 +2550,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
     if (S.db && S.db.cerrar) S.db.cerrar();
     clearInterval(pollT); clearTimeout(listoT);
     S.db = null; S.assets = null; S.isOwner = false; S.isAdmin = false; S.escribe = null; S.verComo = null;
-    S.negocios = []; S.imagenes = []; S.comentarios = []; S.solicitudes = []; S.reportes = []; S.accesos = []; S.tareas = []; S.marcas = []; S.v5 = false;
+    S.negocios = []; S.imagenes = []; S.comentarios = []; S.solicitudes = []; S.reportes = []; S.accesos = []; S.tareas = []; S.marcas = []; S.anuncios = []; S.v5 = false;
     S.cargado = {}; S.listoTodo = false;
   }
   function cerrarSesion() {
@@ -2407,6 +2580,8 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       db.doc("ajustes/marca").onSnapshot(function (sn) { S.marca = sn.exists ? sn.data() : {}; refrescar(); });
       if (S.isOwner) db.collection("privado/raul/tareas").onSnapshot(function (sn) { S.tareas = docs(sn); refrescar(); }, function () {});
       if (S.isAdmin) S.assets = crearAssets();
+      // Anuncios (12-anuncios-y-aprobar-descripcion.sql): solo si la tabla existe.
+      sb.from("anuncios").select("id").limit(1).then(function (r) { if (S.db === db && !r.error) sub("anuncios", "anuncios"); });
       // Mi marca (10-mi-marca.sql): solo si la tabla existe.
       sb.from("marcas").select("id").limit(1).then(function (r) { if (S.db === db && !r.error) sub("marcas", "marcas"); });
       // Campos extra de las solicitudes (5-campos-extra.sql). Si aún no se corre ese SQL, el portal funciona como antes.
