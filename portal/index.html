@@ -339,6 +339,7 @@ button.fila:hover { background: var(--glass-hi); }
 .logo-thumb { background: #ffffff; }
 .logo-thumb img { object-fit: contain !important; padding: 14%; }
 .sobre-oscuro .logo-thumb { background: #0b1626; }
+.caption-txt { white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px 18px; border-radius: 18px; background: var(--field); border: 1px solid var(--line); font-size: 14.5px; line-height: 1.55; }
 .datos { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: 14px; }
 .datos dt { color: var(--muted); font-weight: 600; }
 .datos dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -573,7 +574,8 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       ["publicadaTs", "publicada_ts", aIso, aMs], ["fecha", "fecha", fDb, fApp], ["formato", "formato"],
       ["borradores", "borradores", function (v) { return v || []; }, function (v) { return v || []; }],
       ["elegida", "elegida"], ["creado", "creado", aIso, aMs],
-      ["detalles", "detalles", obj, obj], ["fechaBorrador", "fecha_borrador", fDb, fApp]] },
+      ["detalles", "detalles", obj, obj], ["fechaBorrador", "fecha_borrador", fDb, fApp],
+      ["caption", "caption", function (v) { return v || null; }, function (v) { return v || null; }]] },
     comentarios: { tabla: "comentarios", campos: [["imagenId", "imagen_id"], ["autor", "autor"], ["tipo", "tipo"], ["texto", "texto"], ["opcion", "opcion"], ["ts", "creado", aIso, aMs]] },
     solicitudes: { tabla: "solicitudes", campos: [["negocioId", "negocio_id"], ["titulo", "titulo"], ["detalle", "detalle"], ["fecha", "fecha", fDb, fApp], ["formato", "formato"], ["estado", "estado"], ["ts", "creado", aIso, aMs],
       ["detalles", "detalles", obj, obj], ["fechaBorrador", "fecha_borrador", fDb, fApp]] },
@@ -1500,6 +1502,9 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
     /* Acciones del cliente */
     if (!admin && (i.estado === "aprobacion" || i.estado === "cambios")) add(root, bloqueCliente(i));
 
+    /* Descripción para Instagram (cuando ya está aprobada) */
+    add(root, bloqueCaption(i, admin));
+
     /* Lo que se pidió (campos opcionales) */
     add(root, bloqueDetalles(i.detalles, i.fechaBorrador, "Lo que se pidió"));
 
@@ -1536,6 +1541,35 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
     /* Conversación */
     add(root, conversacion(i));
     return root;
+  }
+  function bloqueCaption(i, admin) {
+    var c = i.caption && i.caption.texto ? i.caption : null;
+    if (!c) return null;
+    var abierto = S.capEdit === i.id;
+    var caja = h("div", { class: "seccion", style: "gap:10px" },
+      h("span", { class: "kicker" }, "Descripción para Instagram"),
+      h("div", { class: "caption-txt" }, c.texto),
+      h("div", { class: "acciones" },
+        h("button", { class: "btn-glass", type: "button", onclick: function () { copiar(c.texto, "Descripción copiada. Pégala en Instagram."); } }, "Copiar descripción"),
+        c.corto ? h("button", { class: "btn-glass", type: "button", onclick: function () { copiar(c.corto, "Versión corta copiada."); } }, "Copiar versión corta") : null,
+        h("button", { class: "btn-glass", type: "button", "aria-expanded": abierto ? "true" : "false", onclick: function () { S.capEdit = abierto ? null : i.id; pintarHoja(); } },
+          admin ? "Editar descripción" : "Pedir un cambio")));
+    if (abierto && admin) {
+      var ta = h("textarea", { id: "cap-edit", maxlength: "2200", style: "min-height:180px" }); ta.value = c.texto;
+      add(caja, h("div", { class: "seccion", style: "gap:8px" }, ta, h("div", { class: "acciones" },
+        h("button", { class: "btn", type: "button", onclick: function (e) {
+          var t = ta.value.trim(); if (!t) return; e.currentTarget.disabled = true;
+          upd("imagenes", i.id, { caption: Object.assign({}, c, { texto: t, editada: new Date().toISOString() }) }).then(function () { S.capEdit = null; aviso("Descripción guardada."); });
+        } }, "Guardar"))));
+    } else if (abierto) {
+      var pide = h("textarea", { id: "cap-cambio", maxlength: "600", placeholder: "Qué te gustaría cambiar. Ej. Agregar el horario de fin de semana" });
+      add(caja, h("div", { class: "seccion", style: "gap:8px" }, pide, h("div", { class: "acciones" },
+        h("button", { class: "btn", type: "button", onclick: function (e) {
+          var t = pide.value.trim(); if (!t) { aviso("Escribe qué quieres cambiar."); return; } e.currentTarget.disabled = true;
+          comentar(i.id, "cambios_caption", t).then(function () { S.capEdit = null; aviso("Enviamos tu cambio. Te avisamos cuando esté la nueva descripción."); });
+        } }, "Enviar cambio"))));
+    }
+    return caja;
   }
   function notasConLinks(t) {
     var p = h("p", { class: "nota", style: "white-space:pre-wrap;overflow-wrap:anywhere" });
@@ -1683,7 +1717,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       var hilo = h("div", { class: "hilo" });
       cs.forEach(function (c) {
         var cli = esDeCliente(c), mio = admin ? !cli : cli;
-        var cuerpo = c.tipo === "aprobado" ? "Aprobó la imagen" + (typeof c.opcion === "number" ? " (opción " + (c.opcion + 1) + ")" : "") + "." : c.tipo === "cambios" ? "Pidió cambios" + (typeof c.opcion === "number" ? " en la opción " + (c.opcion + 1) : "") + ": " + c.texto : c.texto;
+        var cuerpo = c.tipo === "aprobado" ? "Aprobó la imagen" + (typeof c.opcion === "number" ? " (opción " + (c.opcion + 1) + ")" : "") + "." : c.tipo === "cambios" ? "Pidió cambios" + (typeof c.opcion === "number" ? " en la opción " + (c.opcion + 1) : "") + ": " + c.texto : c.tipo === "cambios_caption" ? "Pidió cambios en la descripción: " + c.texto : c.texto;
         add(hilo, h("div", { class: "msg" + (mio ? " mio" : "") }, h("div", { class: "msg-cab" }, h("span", null, mio ? "Tú" : (cli ? "Cliente" : "Luxora")), h("span", null, fTs(c.ts))), h("div", { class: "msg-txt" }, cuerpo)));
       });
       add(box, hilo);
@@ -2320,7 +2354,7 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       if (x.c) {
         var i = imgPorId(x.c.imagenId);
         add(actBox, h("button", { class: "fila", type: "button", onclick: function () { abrirImagen(i.id); } }, thumb(i, "mini"),
-          h("div", { class: "fila-mid" }, h("span", { class: "fila-titulo" }, x.c.tipo === "aprobado" ? "Aprobó " + i.titulo : x.c.tipo === "cambios" ? "Pidió cambios en " + i.titulo : "Comentó en " + i.titulo), h("span", { class: "fila-sub" }, marcadorNeg(negPorId(i.negocioId)), fTs(x.c.ts))),
+          h("div", { class: "fila-mid" }, h("span", { class: "fila-titulo" }, x.c.tipo === "aprobado" ? "Aprobó " + i.titulo : x.c.tipo === "cambios" ? "Pidió cambios en " + i.titulo : x.c.tipo === "cambios_caption" ? "Pidió cambios en la descripción de " + i.titulo : "Comentó en " + i.titulo), h("span", { class: "fila-sub" }, marcadorNeg(negPorId(i.negocioId)), fTs(x.c.ts))),
           h("span", { class: "pill " + (x.c.tipo === "aprobado" ? "e-ok" : x.c.tipo === "cambios" ? "e-late" : "e-idle") }, x.c.tipo === "aprobado" ? "Aprobó" : x.c.tipo === "cambios" ? "Cambios" : "Nota")));
       } else {
         add(actBox, h("a", { class: "fila", href: "#negocio-" + x.s.negocioId, style: "text-decoration:none" }, fechaNum(x.s.fecha, true),
