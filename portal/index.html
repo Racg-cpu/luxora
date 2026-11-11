@@ -1213,19 +1213,21 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
     add(root, h("section", { class: "seccion" }, h("h2", { class: "h2" }, "Negocios", h("span", { class: "n" }, String(negs.length))), grid));
 
     if (adminActivo()) {
-      var capPend = captionsPendientes(negs);
-      if (capPend.length) {
-        var fc = h("div", { class: "filas" });
-        negs.forEach(function (n) {
-          var deN = capPend.filter(function (i) { return i.negocioId === n.id; });
-          if (!deN.length) return;
-          add(fc, h("div", { class: "fila" }, h("span", { class: "dot", vars: { "--c": colorVar(n) } }),
-            h("div", { class: "fila-mid" }, h("span", { class: "fila-titulo" }, n.nombre), h("span", { class: "fila-sub" }, deN.map(function (i) { return h("span", null, i.titulo); }))),
-            h("button", { class: "btn-glass", type: "button", onclick: function () { copiar(recordatorioCaption(deN), "Recordatorio copiado. Pégalo en WhatsApp."); } }, "Copiar recordatorio")));
-        });
-        add(root, h("section", { class: "seccion" }, h("h2", { class: "h2" }, "Descripciones por aprobar", h("span", { class: "n" }, String(capPend.length))),
-          h("p", { class: "nota" }, "El cliente aún no aprueba estas descripciones. Copia el recordatorio y mándaselo por WhatsApp."), fc));
-      }
+      var capPend = captionsPendientes(negs), totalPend = 0;
+      var fc = h("div", { class: "filas" });
+      negs.forEach(function (n) {
+        var imgsN = S.imagenes.filter(function (i) { return i.negocioId === n.id && i.estado === "aprobacion"; }).sort(porFecha);
+        var capsN = capPend.filter(function (i) { return i.negocioId === n.id; });
+        if (!imgsN.length && !capsN.length) return;
+        totalPend += imgsN.length + capsN.length;
+        add(fc, h("div", { class: "fila" }, h("span", { class: "dot", vars: { "--c": colorVar(n) } }),
+          h("div", { class: "fila-mid" }, h("span", { class: "fila-titulo" }, n.nombre),
+            imgsN.length ? h("span", { class: "fila-sub" }, h("b", null, plural(imgsN.length, "imagen", "imágenes") + ":"), imgsN.map(function (i) { return h("span", null, i.titulo); })) : null,
+            capsN.length ? h("span", { class: "fila-sub" }, h("b", null, plural(capsN.length, "descripción", "descripciones") + ":"), capsN.map(function (i) { return h("span", null, i.titulo); })) : null),
+          h("button", { class: "btn-glass", type: "button", onclick: function () { copiar(recordatorioPendientes(n, imgsN, capsN), "Recordatorio copiado. Pégalo en WhatsApp."); } }, "Copiar recordatorio")));
+      });
+      if (totalPend) add(root, h("section", { class: "seccion" }, h("h2", { class: "h2" }, "Pendiente del cliente", h("span", { class: "n" }, String(totalPend))),
+        h("p", { class: "nota" }, "Imágenes y descripciones que el cliente aún no aprueba. Copia el recordatorio y mándaselo por WhatsApp."), fc));
       var anNuevos = S.anuncios.filter(function (a) { return a.estado === "nueva" && negs.some(function (n) { return n.id === a.negocioId; }); });
       if (anNuevos.length) {
         var fa = h("div", { class: "seccion", style: "gap:12px" });
@@ -1585,6 +1587,13 @@ button.fila:hover, a.fila:hover { transform: translateX(3px); border-color: rgba
       var f = captionFirmada(i);
       return f && !f.aprobada && i.estado !== "cancelada" && (!negs || negs.some(function (n) { return n.id === i.negocioId; }));
     });
+  }
+  function recordatorioPendientes(n, imgs, caps) {
+    var partes = [];
+    if (imgs.length) partes.push("Imágenes por aprobar:\n" + imgs.map(function (i) { return "• " + i.titulo; }).join("\n"));
+    if (caps.length) partes.push("Descripciones para Instagram por aprobar:\n" + caps.map(function (i) { return "• " + i.titulo; }).join("\n"));
+    return "Hola, te dejo lo que tienes pendiente por aprobar en Luxora (" + n.nombre + "):\n\n" + partes.join("\n\n") +
+      "\n\n" + (APP_URL ? "Entra aquí: " + APP_URL + " · " : "") + "En cada una puedes aprobar o pedir cambios. ¡Gracias!";
   }
   function recordatorioCaption(imgs) {
     var titulos = imgs.map(function (i) { return "• " + i.titulo; }).join("\n");
