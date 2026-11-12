@@ -9,7 +9,7 @@ Sitio de Luxora, agencia de marketing digital de Raúl en Guasave, Sinaloa. Raú
 - `.nojekyll` — GitHub Pages sirve los archivos tal cual.
 
 ## Cómo se publica
-GitHub Pages publica la rama `main` (carpeta raíz) en https://racg-cpu.github.io/luxora . Cada push a `main` se publica solo en 1–2 minutos (workflow "pages build and deployment"; revísalo con la API de Actions si necesitas confirmar). Para regresar a una versión anterior: `git revert` del commit y push.
+**Cloudflare Pages** (proyecto `luxora`, conectado a este repo) publica la rama `main` (carpeta raíz) en **https://luxora-3c8.pages.dev** (portal: `/portal/`). Cada push a `main` se publica solo en 1–2 minutos. `_headers` evita que el celular guarde versiones viejas. GitHub Pages sigue activo solo para redirigir el link viejo (`racg-cpu.github.io/luxora`) al nuevo: el `<script>` del principio de cada página. Para regresar a una versión anterior: `git revert` del commit y push.
 
 ## Backend: Supabase
 - Proyecto: `https://jhzmopnzwfpicbvnuxcz.supabase.co`. La clave en el portal es la **publicable** (`sb_publishable_…`): es pública por diseño. **Nunca** pongas en el repo la `service_role`/`secret key` ni contraseñas, y nunca se las pidas a Raúl.
