@@ -1,0 +1,19 @@
+# Cloudflare Pages: las páginas siempre se revisan contra el servidor (el celular no se queda con versiones viejas).
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+
+/
+  Cache-Control: no-cache
+
+/index.html
+  Cache-Control: no-cache
+
+/portal/
+  Cache-Control: no-cache
+
+/portal/index.html
+  Cache-Control: no-cache
+
+/vendor/*
+  Cache-Control: public, max-age=604800
